@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "194376101720",
+    "project_id": "yeleklidunyasi",
+    "storage_bucket": "yeleklidunyasi.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:194376101720:android:6a725504e959605d4bff2d",
+        "android_client_info": {
+          "package_name": "com.mobile_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBt5FgXZVnS39Dnb6mdVGaASo9PvK8cH4c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
