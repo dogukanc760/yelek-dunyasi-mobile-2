@@ -30,6 +30,10 @@ export interface UserProfileResponse {
   emergencyContactName: string;
   emergencyContactRelation: string;
   emergencyContactPhone: string;
+  gender?: string;
+  birthDate?: string;
+  profession?: string;
+  oneSignalPlayerId?: string;
   role: {
     id: number;
     name: string;

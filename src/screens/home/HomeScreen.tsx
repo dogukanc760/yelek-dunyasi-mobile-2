@@ -11,11 +11,12 @@ import {
   ActivityIndicator,
   ImageStyle,
   useWindowDimensions,
+  Modal,
 } from 'react-native';
 import {useNavigation, useTheme} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../types/navigation';
-import {COLORS, FONTS} from '../../constants';
+import {COLORS, FONTS, ROUTES} from '../../constants';
 import {useAuth} from '../../context/AuthContext';
 import {UserClubEvent} from '../../services/eventService';
 import eventService from '../../services/eventService';
@@ -100,7 +101,17 @@ export const HomeScreen: React.FC = () => {
   const {width: screenWidth} = useWindowDimensions();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const {user, isAuthenticated} = useAuth();
+  const {user, isAuthenticated, isLoading: authIsLoading} = useAuth();
+
+  // getStatusColor fonksiyonu HomeScreen scope'una taşındı
+  const getStatusColor = (status: string | undefined) => {
+    // status undefined olabilir
+    const s = status?.toLowerCase();
+    if (s === 'pending') return COLORS.warning;
+    if (s === 'approved' || s === 'active') return COLORS.success;
+    if (s === 'rejected' || s === 'inactive') return COLORS.error;
+    return COLORS.textSecondary;
+  };
 
   // Debug logları
   console.log('===================== HOME SCREEN RENDER =====================');
@@ -160,12 +171,100 @@ export const HomeScreen: React.FC = () => {
   const [activeClubs, setActiveClubs] = useState<Club[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [isRoutesLoading, setIsRoutesLoading] = useState(false);
-  const [_isAnnouncementsLoading, setIsAnnouncementsLoading] = useState(true);
-  const [_isEventsLoading, setIsEventsLoading] = useState(true);
+  const [isAnnouncementsLoading, setIsAnnouncementsLoading] = useState(true);
+  const [isEventsLoading, setIsEventsLoading] = useState(true);
   const [isClubsLoading, setIsClubsLoading] = useState(true);
 
   const [applications, setApplications] = useState<ClubApplication[]>([]);
   const [isApplicationsLoading, setIsApplicationsLoading] = useState(true);
+  const [showProfileCompletionPopup, setShowProfileCompletionPopup] =
+    useState(false);
+
+  // Profil tamamlama popup kontrolü
+  useEffect(() => {
+    console.log('[POPUP_CHECK] useEffect triggered. Deps:', {
+      isAuthenticated,
+      isUserPresent: !!user,
+      isProfileCompleted: user?.isProfileCompleted,
+      authIsLoading,
+    });
+
+    if (!authIsLoading) {
+      if (isAuthenticated && user) {
+        console.log(
+          `[POPUP_CHECK] Auth loaded. User authenticated. isProfileCompleted: ${user.isProfileCompleted}`,
+        );
+        if (user.isProfileCompleted === false) {
+          console.log(
+            '[POPUP_CHECK] Condition met: user.isProfileCompleted is false. Showing popup.',
+          );
+          setShowProfileCompletionPopup(true);
+
+          // İsteğe bağlı: Sorunlu olabilecek diğer alanları logla
+          const profileFieldsToValidate: (keyof typeof user)[] = [
+            'nickname',
+            'phoneNumber',
+            'city',
+            'district',
+            'motorcycleBrand',
+            'motorcycleModel',
+            'profilePicture',
+            'bloodType',
+            'clothingSize',
+            'driverLicenseType',
+            'emergencyContactName',
+            'emergencyContactRelation',
+            'emergencyContactPhone',
+          ];
+          let problematicFieldsFound = false;
+          for (const field of profileFieldsToValidate) {
+            const value = user[field];
+            if (
+              value === null ||
+              value === undefined ||
+              String(value).trim() === '' ||
+              String(value).toLowerCase() === 'unknown' ||
+              String(value).toLowerCase() === 'null string'
+            ) {
+              console.log(
+                `[POPUP_CHECK] Problematic field for update: ${field} - Value: ${String(
+                  value,
+                )}`,
+              );
+              problematicFieldsFound = true;
+            }
+          }
+          if (user.motorcycleCc === null || user.motorcycleCc === undefined) {
+            console.log(
+              `[POPUP_CHECK] Problematic field for update: motorcycleCc - Value: ${String(
+                user.motorcycleCc,
+              )}`,
+            );
+            problematicFieldsFound = true;
+          }
+          if (problematicFieldsFound) {
+            console.log(
+              '[POPUP_CHECK] Additional problematic fields identified. User should update these as well.',
+            );
+          }
+        } else {
+          console.log(
+            '[POPUP_CHECK] Condition NOT met: user.isProfileCompleted is NOT false. Hiding popup.',
+          );
+          setShowProfileCompletionPopup(false);
+        }
+      } else {
+        console.log(
+          '[POPUP_CHECK] Auth loaded. User NOT authenticated or user object is null. Hiding popup.',
+        );
+        setShowProfileCompletionPopup(false);
+      }
+    } else {
+      console.log('[POPUP_CHECK] Auth is still loading. Waiting...');
+      // Auth yüklenirken popup durumunu değiştirmeyebiliriz veya false yapabiliriz.
+      // Şimdilik bir şey yapmıyoruz, yükleme bitince koşullar tekrar değerlendirilecek.
+    }
+  }, [user, isAuthenticated, authIsLoading]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -465,7 +564,7 @@ export const HomeScreen: React.FC = () => {
       onPress={() => navigation.navigate('ClubDetail', {id: club.id})}>
       <Image
         source={{uri: club.logo}}
-        style={styles.clubLogo}
+        style={styles.clubLogo as ImageStyle}
         resizeMode="cover"
       />
       <View style={styles.clubInfo}>
@@ -480,7 +579,9 @@ export const HomeScreen: React.FC = () => {
       console.error('Geçersiz kulüp verisi:', club);
       return null;
     }
-
+    // handleClubPress fonksiyonu tanımlı olmalı veya bu kısım düzenlenmeli
+    // Şimdilik handleClubPress çağrısını koruyorum, eğer tanımsızsa hata verecektir.
+    // Kullanıcı sadece popup ve club logo istediği için buraya dokunmuyorum.
     return (
       <TouchableOpacity
         key={club.id}
@@ -490,10 +591,10 @@ export const HomeScreen: React.FC = () => {
           <Image
             source={{
               uri:
-                club.cover ||
-                'https://placehold.co/800x200/darkgray/white?text=Kapak+Fotoğrafı',
+                'http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000' +
+                club.cover.replace('/public', ''),
             }}
-            style={styles.coverImage}
+            style={styles.coverImage as ImageStyle}
             resizeMode="cover"
           />
           <LinearGradient
@@ -504,10 +605,10 @@ export const HomeScreen: React.FC = () => {
             <Image
               source={{
                 uri:
-                  club.logo ||
-                  'https://placehold.co/200x200/orange/white?text=Logo',
+                  'http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000' +
+                  club.logo.replace('/public', ''),
               }}
-              style={styles.logo}
+              style={styles.logo as ImageStyle}
             />
             <View style={styles.titleContainer}>
               <Text style={styles.title} numberOfLines={1}>
@@ -793,7 +894,7 @@ export const HomeScreen: React.FC = () => {
               : 'Reddedildi'}
           </Text>
         </View>
-      </View>
+      </View>{' '}
       <Text
         style={[styles.applicationNote, {color: colors.text}]}
         numberOfLines={2}>
@@ -817,7 +918,54 @@ export const HomeScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      <StatusBar backgroundColor={colors.background} barStyle="dark-content" />
+      <StatusBar
+        barStyle={
+          colors.background === '#FFFFFF' ? 'dark-content' : 'light-content'
+        }
+        backgroundColor={colors.background}
+      />
+      <Modal
+        transparent={true}
+        animationType="slide"
+        visible={showProfileCompletionPopup}
+        onRequestClose={() => setShowProfileCompletionPopup(false)}>
+        <View style={styles.modalCenteredView}>
+          <View style={[styles.modalView, {backgroundColor: colors.card}]}>
+            <Text style={[styles.modalTitle, {color: colors.text}]}>
+              Profilini Tamamla
+            </Text>
+            <Text style={[styles.modalText, {color: colors.text}]}>
+              Profil bilgilerinde eksik veya güncellenmesi gereken alanlar
+              bulunmaktadır (örneğin; Kan grubu bilgisi, motosiklet bilgisi
+              vb.). Lütfen tüm bilgilerini gözden geçirerek profil tamamlama
+              ekranından güncelle.
+            </Text>
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity
+                style={[styles.modalButton, {backgroundColor: colors.primary}]}
+                onPress={() => {
+                  setShowProfileCompletionPopup(false);
+                  navigation.navigate(ROUTES.PROFILE.EDIT_PROFILE);
+                }}>
+                <Text style={[styles.modalButtonText, {color: COLORS.white}]}>
+                  Profili Tamamla
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  {backgroundColor: colors.border, marginTop: 10},
+                ]}
+                onPress={() => setShowProfileCompletionPopup(false)}>
+                <Text style={[styles.modalButtonText, {color: colors.text}]}>
+                  Daha Sonra
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView
         style={[styles.container, {backgroundColor: colors.background}]}
         contentContainerStyle={styles.contentContainer}
@@ -846,7 +994,9 @@ export const HomeScreen: React.FC = () => {
                   .map(club => ({
                     id: club.id,
                     name: club.name,
-                    logo: club.logo,
+                    logo:
+                      'http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000' +
+                      club.logo.replace('/public', ''),
                     memberCount: club.memberCount,
                   }))
                   .map(renderClubCard)}
@@ -1596,54 +1746,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  applicationHeader: {
+  applicationCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
   },
-  clubLogo: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.backgroundSecondary,
-  },
-  applicationInfo: {
-    marginLeft: 12,
+  applicationTextContainer: {
     flex: 1,
+    marginRight: 8,
   },
-  clubName: {
-    fontSize: 16,
+  applicationClubName: {
     fontFamily: FONTS.FONT_FAMILY.bold,
-    marginBottom: 4,
+    fontSize: 18,
+  },
+  applicationUserName: {
+    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontSize: 14,
+    opacity: 0.8,
   },
   applicationStatus: {
-    fontSize: 14,
-    fontFamily: FONTS.FONT_FAMILY.medium,
-  },
-  applicationNote: {
-    fontSize: 14,
     fontFamily: FONTS.FONT_FAMILY.regular,
-    marginBottom: 8,
-  },
-  responseContainer: {
-    backgroundColor: COLORS.backgroundSecondary,
-    padding: 8,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  responseLabel: {
     fontSize: 12,
-    fontFamily: FONTS.FONT_FAMILY.medium,
-    marginBottom: 4,
-  },
-  responseNote: {
-    fontSize: 14,
-    fontFamily: FONTS.FONT_FAMILY.regular,
-  },
-  applicationDate: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    fontFamily: FONTS.FONT_FAMILY.regular,
     marginTop: 4,
   },
   noClubContainer: {
@@ -1683,15 +1806,115 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     flexDirection: 'row',
     padding: 12,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  clubLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+    backgroundColor: COLORS.border,
   },
   clubInfo: {
     marginLeft: 12,
     flex: 1,
     justifyContent: 'center',
   },
+  clubName: {
+    fontSize: 16,
+    fontFamily: FONTS.FONT_FAMILY.bold,
+  },
   memberCount: {
     fontSize: 14,
     fontFamily: FONTS.FONT_FAMILY.regular,
     color: COLORS.textSecondary,
   },
+  textInputFocus: {
+    borderColor: COLORS.primary,
+  },
+  // Modal stilleri eklendi
+  modalCenteredView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalView: {
+    margin: 20,
+    borderRadius: 20,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    marginBottom: 15,
+    textAlign: 'center',
+    fontSize: 22,
+    fontFamily: FONTS.FONT_FAMILY.bold,
+  },
+  modalText: {
+    marginBottom: 20,
+    textAlign: 'center',
+    fontSize: 16,
+    fontFamily: FONTS.FONT_FAMILY.regular,
+    lineHeight: 22,
+  },
+  modalButtonContainer: {
+    width: '100%',
+  },
+  modalButton: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    elevation: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontFamily: FONTS.FONT_FAMILY.medium,
+    textAlign: 'center',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  applicationNote: {
+    fontSize: 14,
+    fontFamily: FONTS.FONT_FAMILY.regular,
+    marginVertical: 8,
+  },
+  responseContainer: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: COLORS.backgroundSecondary,
+    borderRadius: 4,
+  },
+  responseLabel: {
+    fontFamily: FONTS.FONT_FAMILY.bold,
+    fontSize: 14,
+  },
+  responseNote: {
+    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontSize: 14,
+  },
+  applicationDate: {
+    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontSize: 14,
+    marginTop: 8,
+  },
 });
+
+export default HomeScreen;

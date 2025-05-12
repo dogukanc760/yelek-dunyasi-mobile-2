@@ -1,4 +1,4 @@
-declare module 'react-native-onesignal' {
+declare module 'react-nativse-onesignal' {
   export interface NotificationReceivedEvent {
     complete: (notification: any) => void;
     getNotification: () => any;

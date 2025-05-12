@@ -59,7 +59,7 @@ const mockUserProfile: UserProfile = {
         'https://turkriders.org/wp-content/uploads/2019/07/Trcc-Logo-1024x674.png',
       clubCity: 'İzmir',
       rank: 'admin',
-      rankDescription: 'Yol Kaptanı',
+      rankDescription: 'Yol Kaptanssı',
       status: 'active',
       permissions: {
         canCreateEvent: true,

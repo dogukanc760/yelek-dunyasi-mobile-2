@@ -215,7 +215,11 @@ export const ClubDetailScreen = () => {
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       <Image
-        source={{uri: club.cover}}
+        source={{
+          uri:
+            'http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000' +
+            club.cover.replace('/public', ''),
+        }}
         style={styles.coverImage}
         resizeMode="cover"
       />
@@ -237,7 +241,14 @@ export const ClubDetailScreen = () => {
         </TouchableOpacity>
       )}
       <View style={styles.headerContent}>
-        <Image source={{uri: club.logo}} style={styles.logo} />
+        <Image
+          source={{
+            uri:
+              'http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000' +
+              club.logo.replace('/public', ''),
+          }}
+          style={styles.logo}
+        />
         <View style={styles.clubInfo}>
           <Text style={styles.clubName}>{club.name}</Text>
           <View style={styles.statsContainer}>
@@ -285,8 +296,8 @@ export const ClubDetailScreen = () => {
             <Image
               source={{
                 uri:
-                  club.founder.profilePicture ||
-                  'https://png.pngitem.com/pimgs/s/649-6490124_katie-notopoulos-katienotopoulos-i-write-about-tech-round.png',
+                  'http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000' +
+                  club.founder.profilePicture.replace('/public', ''),
               }}
               style={styles.adminAvatar}
             />
@@ -359,8 +370,8 @@ export const ClubDetailScreen = () => {
               <Image
                 source={{
                   uri:
-                    member.user.profilePicture ||
-                    'https://png.pngitem.com/pimgs/s/649-6490124_katie-notopoulos-katienotopoulos-i-write-about-tech-round.png',
+                    'http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000' +
+                    member.user.profilePicture.replace('/public', ''),
                 }}
                 style={styles.memberAvatar}
               />

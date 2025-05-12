@@ -1,16 +1,58 @@
 import apiClient from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Kulüp üyeliği türü
+// authStore.ts'den alınacak Club ve ClubMembership tiplerine benzer yapılar oluşturalım
+// İdealde bunlar merkezi bir type dosyasından gelmeli.
+
+interface ClubSubDetail {
+  // Club tipine benzer alanlar
+  id: string;
+  name: string;
+  description?: string;
+  logo?: string;
+  type?: string; // 'private' | 'public';
+  status?: string; // 'active' | 'passive';
+  isOfficial?: boolean;
+  memberCount?: number;
+  isFreeForever?: boolean;
+  founderId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  cover?: string;
+}
+
+// Kulüp üyeliği türü - authStore.ts'deki yapıya daha çok benzetildi
 export interface ClubMembership {
+  id?: string; // Opsiyonel, bazen sadece referans olabilir
+  userId?: string; // Opsiyonel
   clubId: string;
-  clubName: string;
-  clubLogo?: string;
-  clubCity?: string;
+  clubCityId?: string | null;
   rank: string;
-  rankDescription: string;
-  status: string;
+  status: string; // 'active', 'pending', 'rejected' etc.
+  totalKilometers?: number;
+  customNickname?: string | null;
+  canCreateEvent?: boolean;
+  canManageMembers?: boolean;
+  canManageCity?: boolean;
+  canSendAnnouncement?: boolean;
+  canAddProduct?: boolean;
+  canManageClub?: boolean;
+  canRemoveMember?: boolean;
+  canManageEvents?: boolean;
+  hangaroundStartDate?: string | null;
+  prospectStartDate?: string | null;
+  memberStartDate?: string | null; // Zorunlu olabilir
+  createdAt?: string;
+  updatedAt?: string;
+  club?: ClubSubDetail; // clubName ve clubLogo yerine club objesi
+
+  // userService'deki eski alanlardan kalanlar (uygunsa birleştirilebilir veya çıkarılabilir)
+  clubName?: string; // club.name tercih edilebilir
+  clubLogo?: string; // club.logo tercih edilebilir
+  clubCity?: string; // clubCityId tercih edilebilir
+  rankDescription?: string; // rank yeterli olabilir
   permissions?: {
+    // Yukarıdaki can... alanları direkt ClubMembership altında olduğu için bu gereksiz olabilir
     canCreateEvent: boolean;
     canManageMembers: boolean;
     canManageCity: boolean;
@@ -46,6 +88,11 @@ export interface UserProfile {
   hasProfilePicture: boolean;
   isActive: boolean;
   clubMemberships?: ClubMembership[];
+  gender?: string;
+  birthDate?: string;
+  profession?: string;
+  oneSignalPlayerId?: string;
+  isProfileCompleted?: boolean;
   role?: {
     id: number;
     name: string;
@@ -72,6 +119,10 @@ export interface UpdateProfileRequest {
   emergencyContactName?: string;
   emergencyContactRelation?: string;
   emergencyContactPhone?: string;
+  gender?: string;
+  birthDate?: string;
+  profession?: string;
+  oneSignalPlayerId?: string;
 }
 
 export interface UploadImageResponse {
@@ -117,16 +168,54 @@ class UserService {
     }
   }
 
-  // Profil bilgilerini güncelleme
-  async updateProfile(profileData: UpdateProfileRequest): Promise<UserProfile> {
+  // YENİ Profil bilgilerini ve fotoğrafı FormData ile güncelleme
+  async updateMyProfileFormData(
+    profileData: UpdateProfileRequest,
+    photo?: ImageUpload,
+  ): Promise<UserProfile> {
     try {
-      const response = await apiClient.patch('/api/v1/auth/me', profileData);
+      const formData = new FormData();
 
-      // Önbelleğe alınmış kullanıcı verilerini güncelle
+      Object.keys(profileData).forEach(key => {
+        const value = profileData[key as keyof UpdateProfileRequest];
+        if (value !== undefined && value !== null) {
+          formData.append(
+            key,
+            typeof value === 'number' ? value.toString() : value,
+          );
+        }
+      });
+
+      if (photo && photo.uri) {
+        formData.append('photo', {
+          uri: photo.uri,
+          type: photo.type || 'image/jpeg',
+          name: photo.name || `profile-${Date.now()}.jpg`,
+        });
+      }
+
+      console.log('📦 FormData gönderiliyor:', formData);
+
+      const response = await apiClient.patch('/api/v1/auth/me', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
       await AsyncStorage.setItem('user_data', JSON.stringify(response.data));
-
+      console.log(
+        '👤 Kullanıcı verisi güncellendi ve kaydedildi:',
+        response.data,
+      );
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
+      console.error(
+        '❌ Profil FormData ile güncellenirken hata:',
+        error.response?.data || error.message,
+      );
+      if (error.response?.data?.errors) {
+        console.error('Validation errors:', error.response.data.errors);
+      }
       throw error;
     }
   }

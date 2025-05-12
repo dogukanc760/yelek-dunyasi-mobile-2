@@ -1,6 +1,13 @@
 import apiClient from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+export interface ClubFile {
+  id: string;
+  fileUrl: string;
+  fileName: string;
+  fileType: string;
+}
+
 export interface Club {
   id: string;
   name: string;
@@ -44,21 +51,7 @@ export interface Club {
     canRemoveMember: boolean;
     canManageEvents: boolean;
   };
-  events?: Array<{
-    id: string;
-    title: string;
-    description: string;
-    startDate: string;
-    endDate: string;
-    location: string;
-    createdAt: string;
-    createdBy: {
-      id: string;
-      firstName: string;
-      lastName: string;
-      profilePicture: string;
-    };
-  }>;
+  events?: Array<any>;
   announcements?: ClubAnnouncement[];
   members?: ClubMember[];
   founder?: {
@@ -66,8 +59,10 @@ export interface Club {
     firstName: string;
     lastName: string;
     profilePicture: string;
+    nickname?: string;
   };
   applications?: ClubApplication[];
+  clubFiles?: ClubFile[];
 }
 
 export interface ClubListResponse {
@@ -125,7 +120,7 @@ export interface ClubApplication {
 
 class ClubService {
   // Kulüpleri listele
-  async getClubs(
+  static async getClubs(
     page = 1,
     limit = 10,
     filter?: {
@@ -146,7 +141,7 @@ class ClubService {
   }
 
   // Kulüp detaylarını getir
-  async getClubById(clubId: string): Promise<Club> {
+  static async getClubById(clubId: string): Promise<Club> {
     try {
       console.log('\n');
       console.log('🔍 ==========================================');
@@ -226,6 +221,7 @@ class ClubService {
         members: clubData.members || [],
         founder: clubData.founder || {},
         applications: clubData.applications || [],
+        clubFiles: clubData.clubFiles || [],
       };
     } catch (error: any) {
       console.error('❌ getClubById hatası:', error.message);
@@ -235,7 +231,7 @@ class ClubService {
   }
 
   // Kulübe katıl
-  async joinClub(clubId: string): Promise<void> {
+  static async joinClub(clubId: string): Promise<void> {
     try {
       await apiClient.post(`/clubs/${clubId}/join`);
     } catch (error: any) {
@@ -246,7 +242,7 @@ class ClubService {
   }
 
   // Kulüpten ayrıl
-  async leaveClub(clubId: string): Promise<{success: boolean}> {
+  static async leaveClub(clubId: string): Promise<{success: boolean}> {
     try {
       const response = await apiClient.post(`/api/v1/clubs/${clubId}/leave`);
       return response.data;
@@ -256,7 +252,7 @@ class ClubService {
   }
 
   // Kulüp oluştur
-  async createClub(clubData: Partial<Club>): Promise<Club> {
+  static async createClub(clubData: Partial<Club>): Promise<Club> {
     try {
       const response = await apiClient.post('/api/v1/clubs', clubData);
       return response.data;
@@ -266,7 +262,10 @@ class ClubService {
   }
 
   // Kulüp bilgilerini güncelle
-  async updateClub(clubId: string, clubData: Partial<Club>): Promise<Club> {
+  static async updateClub(
+    clubId: string,
+    clubData: Partial<Club>,
+  ): Promise<Club> {
     try {
       const response = await apiClient.patch(
         `/api/v1/clubs/${clubId}`,
@@ -279,7 +278,7 @@ class ClubService {
   }
 
   // Kulüp logo/kapak fotoğrafını yükle
-  async uploadClubPhoto(
+  static async uploadClubPhoto(
     clubId: string,
     imageUri: string,
     type: 'logo' | 'cover',
@@ -309,7 +308,7 @@ class ClubService {
   }
 
   // Kulüp üyelerini getir
-  async getClubMembers(
+  static async getClubMembers(
     clubId: string,
     page = 1,
     limit = 20,
@@ -372,7 +371,7 @@ class ClubService {
   }
 
   // Kulüp duyurularını getir
-  async getClubAnnouncements(
+  static async getClubAnnouncements(
     clubId: string,
     page = 1,
     limit = 10,
@@ -391,7 +390,7 @@ class ClubService {
   }
 
   // Kulüp duyurusu oluştur
-  async createAnnouncement(
+  static async createAnnouncement(
     clubId: string,
     data: {title: string; content: string},
   ): Promise<ClubAnnouncement> {
@@ -407,7 +406,7 @@ class ClubService {
   }
 
   // Kullanıcının üye olduğu kulüpleri getir
-  async getUserClubs(page = 1, limit = 10): Promise<ClubListResponse> {
+  static async getUserClubs(page = 1, limit = 10): Promise<ClubListResponse> {
     try {
       const response = await apiClient.get('/api/v1/user/clubs', {
         params: {page, limit},
@@ -419,7 +418,10 @@ class ClubService {
   }
 
   // Kullanıcının yönettiği kulüpleri getir
-  async getUserManagedClubs(page = 1, limit = 10): Promise<ClubListResponse> {
+  static async getUserManagedClubs(
+    page = 1,
+    limit = 10,
+  ): Promise<ClubListResponse> {
     try {
       const response = await apiClient.get('/api/v1/user/managed-clubs', {
         params: {page, limit},
@@ -431,7 +433,7 @@ class ClubService {
   }
 
   // Kulüp başvurularını getir
-  async getClubApplications(
+  static async getClubApplications(
     clubId: string,
     page = 1,
     limit = 10,
@@ -455,7 +457,7 @@ class ClubService {
   }
 
   // Kulüp başvurusunu yanıtla
-  async respondToApplication(
+  static async respondToApplication(
     applicationId: string,
     data: {
       status: 'APPROVE' | 'REJECT';
@@ -474,7 +476,7 @@ class ClubService {
   }
 
   // Kullanıcının başvurularını getir
-  async getUserApplications(userId: string): Promise<{
+  static async getUserApplications(userId: string): Promise<{
     isSuccess: boolean;
     data: ClubApplication[];
     errors: any;
@@ -489,7 +491,7 @@ class ClubService {
     }
   }
 
-  async submitApplication(
+  static async submitApplication(
     clubId: string,
     applicationNote: string,
   ): Promise<void> {
@@ -506,7 +508,7 @@ class ClubService {
     }
   }
 
-  async updateClubMember(
+  static async updateClubMember(
     clubId: string,
     memberId: string,
     data: {
@@ -540,6 +542,36 @@ class ClubService {
       };
     }
   }
+
+  static async updateClubDetailsAndFiles(
+    clubId: string,
+    formData: FormData,
+  ): Promise<any> {
+    try {
+      const token = await AsyncStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('Token bulunamadı');
+      }
+
+      const response = await apiClient.patch(
+        `/api/v1/clubs/${clubId}/details`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        },
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        'updateClubDetailsAndFiles hatası:',
+        error.response?.data || error,
+      );
+      throw error;
+    }
+  }
 }
 
-export default new ClubService();
+export default ClubService;

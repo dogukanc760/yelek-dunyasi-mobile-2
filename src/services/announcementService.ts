@@ -182,6 +182,28 @@ class AnnouncementService {
       throw error;
     }
   }
+
+  // YENİ: Kulübe özel duyuru oluştur
+  async createClubAnnouncement(
+    clubId: string,
+    announcementData: {title: string; content: string; priority: string},
+  ): Promise<Announcement> {
+    // Dönen tip Announcement varsayılıyor, API dokümanına göre güncellenebilir
+    try {
+      const response = await apiClient.post(
+        `/api/v1/clubs/${clubId}/announcements`,
+        announcementData,
+      );
+      return response.data; // API'den dönen duyuru objesini döndür
+    } catch (error) {
+      // Hata detaylarını loglama veya kullanıcıya gösterme işlemleri burada yapılabilir
+      console.error(
+        `Kulüp [${clubId}] için duyuru oluşturulurken hata:`,
+        error,
+      );
+      throw error; // Hatanın üst katmanlarda yakalanabilmesi için tekrar fırlat
+    }
+  }
 }
 
 export default new AnnouncementService();

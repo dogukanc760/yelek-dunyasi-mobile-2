@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {authService, userService, profileCompletionService} from '../services';
 import {UserProfileResponse} from '../services/authService';
 import {ProfileCompletionStatus} from '../services/profileCompletionService';
+import {UpdateProfileRequest, ImageUpload} from '../services/userService';
 import {
   GoogleSignin,
   statusCodes,
@@ -23,7 +24,10 @@ export type AuthContextType = {
     lastName: string,
   ) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (data: Partial<User>) => Promise<void>;
+  updateProfile: (
+    data: UpdateProfileRequest,
+    photo?: ImageUpload,
+  ) => Promise<void>;
   updateProfilePicture: (
     pictureUri: string,
   ) => Promise<{profilePicture: string}>;
@@ -113,11 +117,16 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({
       const response = await authService.loginWithEmail(email, password);
       console.log('📦 Login yanıtı:', JSON.stringify(response, null, 2));
 
-      setUser(response.user as unknown as User);
+      const userDataWithCompletionStatus = {
+        ...(response.user as object),
+        isProfileCompleted: response.isProfileCompleted,
+      };
+      setUser(userDataWithCompletionStatus as User);
+
       setIsAuthenticated(true);
 
-      console.log('👤 Kullanıcı state güncellendi:', {
-        user: response.user,
+      console.log('👤 Kullanıcı state güncellendi (completion status dahil):', {
+        user: userDataWithCompletionStatus,
         isAuthenticated: true,
       });
     } catch (error) {
@@ -208,13 +217,21 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({
     }
   };
 
-  const updateProfile = async (data: Partial<User>) => {
+  const updateProfile = async (
+    data: UpdateProfileRequest,
+    photo?: ImageUpload,
+  ) => {
     try {
       setIsLoading(true);
-      const updatedUser = await authService.updateProfile(data);
-      setUser(updatedUser);
+      const updatedUserData = await userService.updateMyProfileFormData(
+        data,
+        photo,
+      );
+      setUser(updatedUserData as User);
+      await AsyncStorage.setItem('user_data', JSON.stringify(updatedUserData));
+      console.log('👤 Profil AuthContext içinde güncellendi:', updatedUserData);
     } catch (error) {
-      console.error('Profil güncellenirken hata:', error);
+      console.error('Profil güncellenirken hata (AuthContext):', error);
       throw error;
     } finally {
       setIsLoading(false);

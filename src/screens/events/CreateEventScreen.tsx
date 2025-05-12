@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
-  KeyboardAvoidingView,
   Modal,
   FlatList,
 } from 'react-native';
@@ -29,6 +28,7 @@ import {Picker} from '@react-native-picker/picker';
 import apiClient from '../../services/api';
 import {RouteProp} from '@react-navigation/native';
 import {LocationSearch} from '../../components/search/LocationSearch';
+import ScreenWrapper from '../../components/common/ScreenWrapper';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type CreateEventScreenRouteProp = RouteProp<RootStackParamList, 'CreateEvent'>;
@@ -532,10 +532,11 @@ const CreateEventScreen: React.FC = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{flex: 1}}>
-      <ScrollView style={styles.container}>
+    <ScreenWrapper backgroundColor={colors.background}>
+      <ScrollView
+        style={{flex: 1}}
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled">
         <View style={styles.formContainer}>
           {/* Başlık */}
           <PaperTextInput
@@ -852,18 +853,24 @@ const CreateEventScreen: React.FC = () => {
           }}
         />
 
-        {/* Waypoint Modal */}
         <WayPointModal
           visible={waypointModalVisible}
           onClose={() => setWaypointModalVisible(false)}
           onSave={addWaypoint}
         />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </ScreenWrapper>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    paddingBottom: 80,
+  },
   container: {
     flex: 1,
   },
@@ -1097,6 +1104,11 @@ const styles = StyleSheet.create({
   },
   waypointsList: {
     paddingVertical: SIZES.spacing.sm,
+  },
+  bottomButtonContainer: {
+    padding: SIZES.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
   },
 });
 

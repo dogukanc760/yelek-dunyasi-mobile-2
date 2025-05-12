@@ -147,7 +147,8 @@ export const EventDetailScreen = () => {
               <Image
                 source={{
                   uri:
-                    event.creator.profilePicture ||
+                    'http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000' +
+                      event.creator.profilePicture.replace('/public', '') ||
                     'https://via.placeholder.com/150',
                 }}
                 style={styles.organizerAvatar}
@@ -319,7 +320,14 @@ export const EventDetailScreen = () => {
             Düzenleyen Kulüp
           </Text>
           <View style={styles.clubInfo}>
-            <Image source={{uri: event.club.logo}} style={styles.clubLogo} />
+            <Image
+              source={{
+                uri:
+                  'http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000' +
+                  event.club.logo.replace('/public', ''),
+              }}
+              style={styles.clubLogo}
+            />
             <View style={styles.clubDetails}>
               <Text style={[styles.clubName, {color: colors.text}]}>
                 {event.club.name}
@@ -348,8 +356,11 @@ export const EventDetailScreen = () => {
                 <Image
                   source={{
                     uri:
-                      participant.user?.profilePicture ||
-                      'https://via.placeholder.com/150',
+                      'http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000' +
+                        participant.user?.profilePicture.replace(
+                          '/public',
+                          '',
+                        ) || 'https://via.placeholder.com/150',
                   }}
                   style={styles.participantAvatar}
                 />
@@ -595,3 +606,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
+
+export default EventDetailScreen;

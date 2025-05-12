@@ -97,7 +97,7 @@ const ManageClub = () => {
       contentContainerStyle={styles.contentContainer}>
       {renderManagementOption(
         'account-clock',
-        'Gelen Başvurular',
+        'Gelenn Başvurular',
         'Kulübe katılmak isteyen üyelerin başvurularını yönet',
         handleApplicationsPress,
         permissions.canManageMembers,
@@ -138,7 +138,13 @@ const ManageClub = () => {
         'bullhorn',
         'Duyuru Yap',
         'Kulüp üyelerine duyuru gönder',
-        () => navigation.navigate('ClubAnnouncements', {clubId}),
+        () => {
+          if (permissions.canSendAnnouncement) {
+            navigation.navigate('CreateClubAnnouncementScreen', {clubId});
+          } else {
+            Alert.alert('Hata', 'Bu işlem için yetkiniz bulunmamaktadır.');
+          }
+        },
         permissions.canSendAnnouncement,
       )}
 
@@ -150,7 +156,7 @@ const ManageClub = () => {
         permissions.canManageEvents,
       )}
 
-      {renderManagementOption(
+      {/*{renderManagementOption(
         'account-remove',
         'Üye Çıkar',
         'Kulüpten üye çıkar',
@@ -158,17 +164,17 @@ const ManageClub = () => {
           // TODO: Üye çıkarma modalını göster
         },
         permissions.canRemoveMember,
-      )}
+      )}*/}
 
       {renderManagementOption(
         'cog',
         'Kulüp Ayarları',
         'Kulüp bilgilerini ve ayarlarını düzenle',
-        () => navigation.navigate('EditClub'),
+        () => navigation.navigate('EditClub', {clubId}),
         permissions.canManageClub,
       )}
 
-      {permissions.canManageCity &&
+      {/*{permissions.canManageCity &&
         renderManagementOption(
           'city',
           'Şehir Yönetimi',
@@ -177,7 +183,7 @@ const ManageClub = () => {
             // TODO: Şehir yönetimi sayfasına yönlendir
           },
           true,
-        )}
+        )}*/}
     </ScrollView>
   );
 };

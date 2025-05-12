@@ -1,3 +1,4 @@
+import {API_URL} from '../config';
 import apiClient from './api';
 
 export interface Event {
@@ -450,10 +451,45 @@ class EventService {
   ): Promise<EventListResponse> {
     try {
       const response = await apiClient.get(`/api/v1/clubs/${clubId}/events`, {
-        params: {status, page, limit},
+        params: {
+          status,
+          page,
+          limit,
+        },
       });
+
+      if (!response.data) {
+        throw new Error('Etkinlikler alınamadı');
+      }
+
       return response.data;
     } catch (error) {
+      console.error('getClubEvents error:', error);
+      throw error;
+    }
+  }
+  async getClubEventsForManagement(
+    clubId: string,
+    status: 'UPCOMING' | 'COMPLETED' | 'ALL' = 'ALL',
+    page = 1,
+    limit = 10,
+  ): Promise<EventListResponse> {
+    try {
+      const response = await apiClient.get(`/api/v1/events?clubId=${clubId}`, {
+        /* params: {
+          status,
+          page,
+          limit,
+        },*/
+      });
+
+      if (!response.data) {
+        throw new Error('Etkinlikler alınamadı');
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('getClubEvents error:', error);
       throw error;
     }
   }
@@ -465,6 +501,37 @@ class EventService {
       );
       return response.data;
     } catch (error) {
+      throw error;
+    }
+  }
+
+  static async updateEvent(
+    clubId: string,
+    eventId: string,
+    eventData: Partial<Event>,
+  ): Promise<Event> {
+    try {
+      const token = await getToken();
+      const response = await fetch(
+        `${API_URL}/api/v1/clubs/${clubId}/events/${eventId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(eventData),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error('Etkinlik güncellenemedi');
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('updateEvent error:', error);
       throw error;
     }
   }

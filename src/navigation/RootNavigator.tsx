@@ -8,7 +8,6 @@ import {BottomTabNavigator} from './BottomTabNavigator';
 import {useAuth} from '../context/AuthContext';
 import {AnnouncementDetailScreen} from '../screens/announcements/AnnouncementDetailScreen';
 import {ClubDetailScreen} from '../screens/clubs/ClubDetailScreen';
-import {EventDetailScreen} from '../screens/events/EventDetailScreen';
 import EventsScreen from '../screens/events/EventsScreen';
 import {MyEventsScreen} from '../screens/events/MyEventsScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
@@ -20,14 +19,17 @@ import TeamDetailScreen from '../screens/teams/TeamDetailScreen';
 import {RootStackParamList} from '../types/navigation';
 import {ClubMembersScreen} from '../screens/clubs/ClubMembersScreen';
 import {ClubAnnouncementsScreen} from '../screens/clubs/ClubAnnouncementsScreen';
-import {ClubEventsScreen} from '../screens/clubs/ClubEventsScreen';
 import RoutesScreen from '../screens/routes/RoutesScreen';
 import RouteDetailScreen from '../screens/routes/RouteDetailScreen';
 import ManageClubScreen from '../screens/clubs/ManageClub';
 import {ClubApplicationsScreen} from '../screens/clubs/ClubApplications';
 import CreateEventScreen from '../screens/events/CreateEventScreen';
+import CreateClubAnnouncementScreen from '../screens/clubs/CreateClubAnnouncementScreen';
+import EditClubScreen from '../screens/clubs/EditClubScreen';
 import {COLORS} from '../constants';
 import {useNavigation} from '@react-navigation/native';
+import EventDetailScreen from '../screens/events/EventDetailScreen';
+import ClubEventsScreen from '../screens/clubs/ClubEventsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -94,6 +96,11 @@ const RootNavigator = () => {
             component={ClubApplicationsScreen}
           />
           <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
+          <Stack.Screen
+            name="CreateClubAnnouncementScreen"
+            component={CreateClubAnnouncementScreen}
+          />
+          <Stack.Screen name="EditClub" component={EditClubScreen} />
         </>
       )}
     </Stack.Navigator>
