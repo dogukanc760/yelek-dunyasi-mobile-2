@@ -120,19 +120,19 @@ export interface ClubApplication {
 
 class ClubService {
   // Kulüpleri listele
-  static async getClubs(
-    page = 1,
-    limit = 10,
-    filter?: {
-      city?: string;
-      district?: string;
-      search?: string;
-      tags?: string[];
-    },
-  ): Promise<ClubListResponse> {
+  static async getClubs(params: {
+    page?: number;
+    limit?: number;
+    city?: string;
+    district?: string;
+    search?: string;
+    tags?: string[];
+    categoryId?: string;
+    tagId?: string;
+  }): Promise<ClubListResponse> {
     try {
       const response = await apiClient.get('/api/v1/clubs', {
-        params: {page, limit, ...filter},
+        params,
       });
       return response.data;
     } catch (error) {
@@ -252,12 +252,26 @@ class ClubService {
   }
 
   // Kulüp oluştur
-  static async createClub(clubData: Partial<Club>): Promise<Club> {
+  static async createClub(
+    formData: FormData,
+  ): Promise<{isSuccess: boolean; data?: any; errors?: string[]}> {
     try {
-      const response = await apiClient.post('/api/v1/clubs', clubData);
-      return response.data;
-    } catch (error) {
-      throw error;
+      const response = await apiClient.post('/api/v1/clubs', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return {
+        isSuccess: true,
+        data: response.data,
+      };
+    } catch (error: any) {
+      return {
+        isSuccess: false,
+        errors: error.response?.data?.errors || [
+          'Kulüp oluşturulurken bir hata oluştu',
+        ],
+      };
     }
   }
 
@@ -570,6 +584,30 @@ class ClubService {
         error.response?.data || error,
       );
       throw error;
+    }
+  }
+
+  // Kulüp üyesini çıkar
+  static async removeMember(
+    clubId: string,
+    memberId: string,
+  ): Promise<{isSuccess: boolean; errors: any | null}> {
+    try {
+      const response = await apiClient.delete(
+        `/api/v1/clubs/${clubId}/members/${memberId}`,
+      );
+      return {
+        isSuccess: true,
+        errors: null,
+      };
+    } catch (error: any) {
+      console.error('Üye çıkarılırken hata:', error);
+      return {
+        isSuccess: false,
+        errors: [
+          error.response?.data?.message || 'Üye çıkarılırken bir hata oluştu',
+        ],
+      };
     }
   }
 }

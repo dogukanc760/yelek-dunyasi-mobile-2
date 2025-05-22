@@ -115,6 +115,7 @@ const LocationSelectionModal: React.FC<LocationSelectionModalProps> = ({
                 : 'Varış konumunu ara...'
             }
             onSelectLocation={onSelectLocation}
+            onClose={onClose}
           />
         </View>
       </View>
@@ -173,6 +174,7 @@ const WayPointModal: React.FC<WayPointModalProps> = ({
           <LocationSearch
             placeholder="Ara konum ara..."
             onSelectLocation={setSelectedLocation}
+            onClose={onClose}
           />
           {selectedLocation && (
             <View style={{padding: SIZES.spacing.md}}>

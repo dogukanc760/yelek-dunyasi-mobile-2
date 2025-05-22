@@ -23,6 +23,7 @@ interface Location {
 interface LocationSearchProps {
   placeholder?: string;
   onSelectLocation: (location: Location) => void;
+  onClose: () => void;
   initialValue?: string;
 }
 
@@ -34,6 +35,7 @@ interface PlaceResult {
 export const LocationSearch: React.FC<LocationSearchProps> = ({
   placeholder = 'Konum ara...',
   onSelectLocation,
+  onClose,
   initialValue = '',
 }) => {
   const [searchText, setSearchText] = useState(initialValue);
@@ -145,7 +147,7 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({
     if (selectedLocation) {
       setSearchText(selectedLocation.name);
       onSelectLocation(selectedLocation);
-      setShowMap(false);
+      onClose();
     }
   };
 

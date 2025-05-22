@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   Image,
+  Linking,
 } from 'react-native';
 import {
   useNavigation,
@@ -23,16 +24,18 @@ import {COLORS, FONTS} from '../../constants';
 import {
   launchImageLibrary,
   ImageLibraryOptions,
-} from 'react-native-image-picker'; // Asset kaldırıldı, kullanılmıyor gibi
+} from 'react-native-image-picker';
 import {
   pick,
   types as DocumentPickerTypes,
 } from '@react-native-documents/picker';
-import {Picker} from '@react-native-picker/picker'; // Picker import edildi
+import {Picker} from '@react-native-picker/picker';
 import ClubService, {
   Club,
   ClubFile as ServiceClubFile,
-} from '../../services/clubService'; // ClubFile -> ServiceClubFile olarak yeniden adlandırıldı
+} from '../../services/clubService';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import WebView from 'react-native-webview';
 
 interface User {
   // Bu User arayüzü ClubService.Club.founder ile eşleşmeli veya oradan alınmalı
@@ -88,12 +91,12 @@ const EditClubScreen = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isOfficial, setIsOfficial] = useState(false);
-  const [logo, setLogo] = useState(''); // Seçilen yeni logo URI'si
-  const [cover, setCover] = useState(''); // Seçilen yeni kapak URI'si
+  const [logo, setLogo] = useState('');
+  const [cover, setCover] = useState('');
   const [uploadedDocuments, setUploadedDocuments] = useState<
     UploadedDocumentInfo[]
   >([]);
-  const [existingClubFiles, setExistingClubFiles] = useState<ClubFile[]>([]); // API'den gelen mevcut dosyalar
+  const [existingClubFiles, setExistingClubFiles] = useState<ClubFile[]>([]);
 
   // API_BASE_URL ve JWT_TOKEN sabitleri kaldırıldı, ClubService içinde yönetiliyor.
   // const clubService = new ClubService(); // Kaldırıldı, static metodlar kullanılacak
@@ -538,6 +541,68 @@ const EditClubScreen = () => {
     // Not: Bu değişiklik handleSave içinde sunucuya gönderilmeli.
   };
 
+  // Döküman görüntüleyici için yeni fonksiyon
+  const handleDocumentPress = (fileUrl: string, fileType: string) => {
+    try {
+      console.log('handleDocumentPress çağrıldı:', {fileUrl, fileType});
+
+      let fullUrl = fileUrl.startsWith('http')
+        ? fileUrl
+        : `http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000${fileUrl.replace(
+            '/public',
+            '',
+          )}`;
+
+      console.log('Döküman için oluşturulan URL:', fullUrl);
+
+      // Desteklenen döküman türlerini kontrol et
+      const supportedTypes = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'text/plain',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ];
+
+      // MIME tipini kontrol et
+      const mimeType = fileType.toLowerCase();
+      const isSupported = supportedTypes.some(type => mimeType.includes(type));
+
+      if (isSupported) {
+        // PDF ve resimler için WebView kullan
+        navigation.navigate('DocumentViewer', {
+          url: fullUrl,
+          title: 'Döküman Görüntüleyici',
+        });
+      } else {
+        // Desteklenmeyen türler için sistem uygulamasını dene
+        Linking.canOpenURL(fullUrl)
+          .then(supported => {
+            if (supported) {
+              Linking.openURL(fullUrl);
+            } else {
+              Alert.alert(
+                'Desteklenmeyen Döküman Türü',
+                `Bu döküman türü (${fileType}) şu anda desteklenmiyor. Lütfen dosyayı indirip cihazınızdaki uygun bir uygulama ile açın.`,
+              );
+            }
+          })
+          .catch(err => {
+            console.error('Döküman açma hatası:', err);
+            Alert.alert(
+              'Hata',
+              'Döküman açılırken bir hata oluştu. Lütfen daha sonra tekrar deneyin.',
+            );
+          });
+      }
+    } catch (error) {
+      console.error('handleDocumentPress hatası:', error);
+      Alert.alert('Hata', 'Döküman açılırken bir hata oluştu.');
+    }
+  };
+
   // Conditional logs before returning JSX
   if (Platform.OS === 'android') {
     // Or some other debug flag
@@ -842,13 +907,24 @@ const EditClubScreen = () => {
 
           {/* uploadedDocuments ve existingClubFiles birleşik şekilde listeleniyor */}
           {[...uploadedDocuments, ...existingClubFiles].map((item, _) => {
-            // uploadedDocuments ve existingClubFiles farklı tipte olabilir, ayırt et
             const isUploaded = 'uri' in item;
             return (
               <View
                 key={isUploaded ? item.uri : item.id}
                 style={styles.documentContainer}>
-                <View style={styles.documentInfoRow}>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (isUploaded) {
+                      handleDocumentPress(item.uri, item.type);
+                    } else {
+                      handleDocumentPress(
+                        'http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000' +
+                          item.fileUrl.replace('/public', ''),
+                        item.fileType,
+                      );
+                    }
+                  }}
+                  style={styles.documentInfoRow}>
                   <Text
                     style={[styles.documentName, {color: colors.text}]}
                     numberOfLines={1}>
@@ -865,7 +941,7 @@ const EditClubScreen = () => {
                       {isUploaded ? 'Kaldır' : 'Sil'}
                     </Text>
                   </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
                 <View style={styles.pickerContainerStyle}>
                   <Picker
                     selectedValue={
@@ -892,8 +968,6 @@ const EditClubScreen = () => {
               </View>
             );
           })}
-
-          {/* DEBUG: Birleşik belge listesini sade şekilde göster */}
         </View>
       )}
     </ScrollView>

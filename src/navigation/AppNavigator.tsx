@@ -10,6 +10,7 @@ import {EventDetailScreen} from '../screens/events/EventDetailScreen';
 import {ClubApplicationsScreen} from '../screens/clubs/ClubApplications';
 import ManageClub from '../screens/clubs/ManageClub';
 import {RootStackParamList} from '../types/navigation';
+import DocumentViewer from '../screens/DocumentViewer';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -104,6 +105,13 @@ const AppNavigator = () => {
         options={{
           headerTitle: 'Kulübü Düzenle',
         }}
+      />
+      <Stack.Screen
+        name="DocumentViewer"
+        component={DocumentViewer}
+        options={({route}) => ({
+          title: (route.params as any)?.title || 'Döküman Görüntüleyici',
+        })}
       />
     </Stack.Navigator>
   );

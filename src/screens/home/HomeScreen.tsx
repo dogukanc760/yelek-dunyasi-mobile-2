@@ -16,7 +16,7 @@ import {
 import {useNavigation, useTheme} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../types/navigation';
-import {COLORS, FONTS, ROUTES} from '../../constants';
+import {COLORS, FONTS, SIZES} from '../../constants/theme';
 import {useAuth} from '../../context/AuthContext';
 import {UserClubEvent} from '../../services/eventService';
 import eventService from '../../services/eventService';
@@ -103,16 +103,6 @@ export const HomeScreen: React.FC = () => {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const {user, isAuthenticated, isLoading: authIsLoading} = useAuth();
 
-  // getStatusColor fonksiyonu HomeScreen scope'una taşındı
-  const getStatusColor = (status: string | undefined) => {
-    // status undefined olabilir
-    const s = status?.toLowerCase();
-    if (s === 'pending') return COLORS.warning;
-    if (s === 'approved' || s === 'active') return COLORS.success;
-    if (s === 'rejected' || s === 'inactive') return COLORS.error;
-    return COLORS.textSecondary;
-  };
-
   // Debug logları
   console.log('===================== HOME SCREEN RENDER =====================');
   console.log('USER DATA:', user);
@@ -162,8 +152,8 @@ export const HomeScreen: React.FC = () => {
   }, [user, isAuthenticated]);
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [_events, _setEvents] = useState<UserClubEvent[]>([]);
-  const [_clubs, _setClubs] = useState<Club[]>([]);
+  const [_isEventsLoading, setIsEventsLoading] = useState(true);
+  const [isClubsLoading, setIsClubsLoading] = useState(true);
 
   const [isLoading, setIsLoading] = useState(false);
   const [upcomingEvents, setUpcomingEvents] = useState<UserClubEvent[]>([]);
@@ -171,9 +161,7 @@ export const HomeScreen: React.FC = () => {
   const [activeClubs, setActiveClubs] = useState<Club[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [isRoutesLoading, setIsRoutesLoading] = useState(false);
-  const [isAnnouncementsLoading, setIsAnnouncementsLoading] = useState(true);
-  const [isEventsLoading, setIsEventsLoading] = useState(true);
-  const [isClubsLoading, setIsClubsLoading] = useState(true);
+  const [_isAnnouncementsLoading, setIsAnnouncementsLoading] = useState(true);
 
   const [applications, setApplications] = useState<ClubApplication[]>([]);
   const [isApplicationsLoading, setIsApplicationsLoading] = useState(true);
@@ -284,7 +272,7 @@ export const HomeScreen: React.FC = () => {
 
       setIsClubsLoading(true);
       try {
-        const response = await clubService.getClubs(1, 3);
+        const response = await clubService.getClubs({page: 1, limit: 3});
         console.log(
           '🏢 Kulüpler API yanıtı (ham):',
           JSON.stringify(response, null, 2),
@@ -319,19 +307,16 @@ export const HomeScreen: React.FC = () => {
             JSON.stringify(mappedClubs, null, 2),
           );
           setActiveClubs(mappedClubs);
-          _setClubs(mappedClubs);
         } else {
           console.error(
             'Kulüpler API yanıtı beklenen formatta değil:',
             response,
           );
           setActiveClubs([]);
-          _setClubs([]);
         }
       } catch (error) {
         console.error('Kulüpler alınırken hata:', error);
         setActiveClubs([]);
-        _setClubs([]);
       } finally {
         setIsClubsLoading(false);
       }
@@ -732,7 +717,6 @@ export const HomeScreen: React.FC = () => {
       if (!user?.id) {
         console.log('❌ Kullanıcı girişi yapılmamış');
         setUpcomingEvents([]);
-        _setEvents([]);
         return;
       }
 
@@ -748,16 +732,13 @@ export const HomeScreen: React.FC = () => {
         );
 
         setUpcomingEvents(upcomingEvts);
-        _setEvents(upcomingEvts);
       } else {
         console.error('❌ API yanıtı beklenen formatta değil:', response);
         setUpcomingEvents([]);
-        _setEvents([]);
       }
     } catch (error) {
       console.error('❌ Etkinlikler alınırken hata:', error);
       setUpcomingEvents([]);
-      _setEvents([]);
     } finally {
       setIsEventsLoading(false);
     }
@@ -945,7 +926,7 @@ export const HomeScreen: React.FC = () => {
                 style={[styles.modalButton, {backgroundColor: colors.primary}]}
                 onPress={() => {
                   setShowProfileCompletionPopup(false);
-                  navigation.navigate(ROUTES.PROFILE.EDIT_PROFILE);
+                  navigation.navigate('EditProfile');
                 }}>
                 <Text style={[styles.modalButtonText, {color: COLORS.white}]}>
                   Profili Tamamla
@@ -987,19 +968,50 @@ export const HomeScreen: React.FC = () => {
           user.clubMemberships.length > 0 && (
             <Section
               title="Kulüpler"
-              onSeeAll={() => navigation.navigate('ClubsList')}
+              onSeeAll={() => navigation.navigate('ClubsListScreen' as never)}
               isLoading={isClubsLoading}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'flex-end',
+                  marginBottom: 8,
+                }}>
+                <TouchableOpacity
+                  style={styles.createClubButton}
+                  onPress={() => navigation.navigate('CreateClub' as never)}>
+                  <Text style={styles.createClubButtonText}>Kulüp Oluştur</Text>
+                </TouchableOpacity>
+              </View>
               <View style={styles.clubsContainer}>
-                {activeClubs
-                  .map(club => ({
-                    id: club.id,
-                    name: club.name,
-                    logo:
-                      'http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000' +
-                      club.logo.replace('/public', ''),
-                    memberCount: club.memberCount,
-                  }))
-                  .map(renderClubCard)}
+                {activeClubs && activeClubs.length > 0 ? (
+                  activeClubs.map(club => (
+                    <TouchableOpacity
+                      key={club.id}
+                      style={styles.oldClubCard}
+                      onPress={() =>
+                        navigation.navigate('ClubDetail', {id: club.id})
+                      }>
+                      <Image
+                        source={{
+                          uri: club.logo.startsWith('http')
+                            ? club.logo
+                            : 'http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000' +
+                              club.logo.replace('/public', ''),
+                        }}
+                        style={styles.oldClubLogo}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.oldClubInfo}>
+                        <Text style={styles.oldClubName}>{club.name}</Text>
+                        <Text style={styles.oldClubMemberCount}>
+                          {club.memberCount} üye
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <Text style={styles.emptyText}>Kulüp bulunamadı</Text>
+                )}
               </View>
             </Section>
           )}
@@ -1013,7 +1025,7 @@ export const HomeScreen: React.FC = () => {
               </Text>
               <TouchableOpacity
                 style={styles.joinClubButton}
-                onPress={() => navigation.navigate('ClubsList')}>
+                onPress={() => navigation.navigate('ClubsListScreen')}>
                 <Text style={styles.joinClubButtonText}>Kulüpleri Keşfet</Text>
               </TouchableOpacity>
             </View>
@@ -1095,16 +1107,9 @@ export const HomeScreen: React.FC = () => {
               Popüler Rotalar
             </Text>
             <TouchableOpacity
-              onPress={() => navigation.navigate('PopularRoutes')}
-              style={styles.seeAllButton}>
-              <Text style={{...styles.seeAllText, color: colors.primary}}>
-                Tümünü Gör
-              </Text>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={18}
-                color={colors.primary}
-              />
+              style={styles.seeAllButton}
+              onPress={() => navigation.navigate('ClubsListScreen')}>
+              <Text style={styles.seeAllButtonText}>Tümünü gör</Text>
             </TouchableOpacity>
           </View>
 
@@ -1193,7 +1198,8 @@ export const HomeScreen: React.FC = () => {
             <Text style={{...styles.sectionTitle, color: colors.text}}>
               Aktif Kulüpler
             </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('ClubsList')}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('ClubsListScreen')}>
               <Text style={{...styles.sectionLink, color: COLORS.primary}}>
                 Tümünü Gör
               </Text>
@@ -1262,35 +1268,36 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontFamily: FONTS.FONT_FAMILY.bold,
+    fontSize: SIZES.large,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: SIZES.base,
   },
   sectionContent: {
     width: '100%',
   },
   sectionLink: {
-    fontFamily: FONTS.FONT_FAMILY.medium,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: SIZES.font,
     color: COLORS.primary,
+    fontWeight: '500',
   },
   headerContainer: {
     padding: 16,
   },
   welcomeText: {
-    fontFamily: FONTS.FONT_FAMILY.bold,
+    fontFamily: FONTS.bold,
     fontSize: 24,
     lineHeight: 32,
     marginBottom: 4,
   },
   subtitle: {
-    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontFamily: FONTS.regular,
     fontSize: 16,
     lineHeight: 24,
     color: COLORS.textSecondary,
   },
   emptyText: {
-    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontFamily: FONTS.regular,
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
@@ -1304,7 +1311,6 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
   },
-  // Event card styles
   eventCard: {
     backgroundColor: COLORS.white,
     borderRadius: 12,
@@ -1331,7 +1337,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   eventTitle: {
-    fontFamily: FONTS.FONT_FAMILY.bold,
+    fontFamily: FONTS.bold,
     fontSize: 18,
     lineHeight: 24,
     flex: 1,
@@ -1339,13 +1345,13 @@ const styles = StyleSheet.create({
   eventTypeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: COLORS.lightGray,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 16,
   },
   eventType: {
-    fontFamily: FONTS.FONT_FAMILY.medium,
+    fontFamily: FONTS.medium,
     fontSize: 12,
     lineHeight: 16,
     marginLeft: 4,
@@ -1359,7 +1365,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   eventDate: {
-    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontFamily: FONTS.regular,
     fontSize: 14,
     lineHeight: 20,
     marginLeft: 8,
@@ -1369,7 +1375,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   eventLocation: {
-    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontFamily: FONTS.regular,
     fontSize: 14,
     lineHeight: 20,
     marginLeft: 8,
@@ -1381,7 +1387,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: COLORS.lightGray,
   },
   eventClubContainer: {
     flexDirection: 'row',
@@ -1400,10 +1406,10 @@ const styles = StyleSheet.create({
   clubLogoPlaceholder: {
     color: COLORS.white,
     fontSize: 12,
-    fontFamily: FONTS.FONT_FAMILY.bold,
+    fontFamily: FONTS.bold,
   },
   eventClubName: {
-    fontFamily: FONTS.FONT_FAMILY.medium,
+    fontFamily: FONTS.medium,
     fontSize: 14,
     lineHeight: 20,
     flex: 1,
@@ -1414,12 +1420,11 @@ const styles = StyleSheet.create({
     paddingLeft: 8,
   },
   eventParticipants: {
-    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontFamily: FONTS.regular,
     fontSize: 14,
     lineHeight: 20,
     marginLeft: 4,
   },
-  // Small event card styles
   smallEventCard: {
     backgroundColor: COLORS.white,
     borderRadius: 12,
@@ -1443,13 +1448,13 @@ const styles = StyleSheet.create({
   smallEventTypeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: COLORS.lightGray,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 12,
   },
   smallEventType: {
-    fontFamily: FONTS.FONT_FAMILY.medium,
+    fontFamily: FONTS.medium,
     fontSize: 12,
     lineHeight: 16,
     marginLeft: 4,
@@ -1463,7 +1468,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   smallEventDate: {
-    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontFamily: FONTS.regular,
     fontSize: 12,
     lineHeight: 16,
     marginLeft: 6,
@@ -1473,7 +1478,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   smallEventLocation: {
-    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontFamily: FONTS.regular,
     fontSize: 12,
     lineHeight: 16,
     marginLeft: 6,
@@ -1495,7 +1500,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   smallEventClubName: {
-    fontFamily: FONTS.FONT_FAMILY.medium,
+    fontFamily: FONTS.medium,
     fontSize: 12,
     lineHeight: 16,
   },
@@ -1504,12 +1509,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   smallEventParticipants: {
-    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontFamily: FONTS.regular,
     fontSize: 12,
     lineHeight: 16,
     marginLeft: 4,
   },
-  // Club card styles
   card: {
     backgroundColor: COLORS.white,
     borderRadius: 12,
@@ -1551,7 +1555,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontFamily: FONTS.FONT_FAMILY.bold,
+    fontFamily: FONTS.bold,
     fontSize: 18,
     color: COLORS.white,
     marginBottom: 4,
@@ -1572,7 +1576,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   badgeText: {
-    fontFamily: FONTS.FONT_FAMILY.medium,
+    fontFamily: FONTS.medium,
     fontSize: 12,
     color: COLORS.white,
     marginLeft: 4,
@@ -1593,7 +1597,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
-  // Grid container
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1609,14 +1612,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   seeAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    padding: SIZES.base,
+    backgroundColor: COLORS.primary,
+    borderRadius: SIZES.radius,
   },
-  seeAllText: {
-    fontFamily: FONTS.FONT_FAMILY.medium,
-    fontSize: 14,
-    lineHeight: 20,
-    marginRight: 4,
+  seeAllButtonText: {
+    color: COLORS.white,
+    fontSize: SIZES.font,
+    fontWeight: '500',
   },
   clubListContainer: {
     paddingHorizontal: 16,
@@ -1643,17 +1646,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   announcementTitle: {
-    fontFamily: FONTS.FONT_FAMILY.bold,
+    fontFamily: FONTS.bold,
     fontSize: 16,
     lineHeight: 24,
   },
   publisherName: {
-    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontFamily: FONTS.regular,
     fontSize: 14,
     lineHeight: 20,
   },
   announcementContent: {
-    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontFamily: FONTS.regular,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -1682,7 +1685,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   routeName: {
-    fontFamily: FONTS.FONT_FAMILY.bold,
+    fontFamily: FONTS.bold,
     fontSize: 16,
     lineHeight: 24,
     marginBottom: 8,
@@ -1698,7 +1701,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   routeStatText: {
-    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontFamily: FONTS.regular,
     fontSize: 14,
     lineHeight: 20,
     marginLeft: 4,
@@ -1707,7 +1710,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   routeDifficultyText: {
-    fontFamily: FONTS.FONT_FAMILY.medium,
+    fontFamily: FONTS.medium,
     fontSize: 12,
     lineHeight: 16,
   },
@@ -1719,8 +1722,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  // Containers
   clubsContainer: {
+    width: '100%',
+  },
+  clubsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  sectionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  createClubButton: {
+    backgroundColor: COLORS.success,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  createClubButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  clubsList: {
     width: '100%',
   },
   gradient: {
@@ -1746,97 +1773,119 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  applicationCardContent: {
+  applicationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  applicationInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  applicationNote: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    marginVertical: 8,
+  },
+  responseContainer: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: COLORS.background,
+    borderRadius: 4,
+  },
+  responseLabel: {
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+  },
+  responseNote: {
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+  },
+  applicationDate: {
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    marginTop: 8,
+  },
+  clubCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.radius,
+    padding: SIZES.base,
+    marginBottom: SIZES.base,
+    borderWidth: 1,
+    borderColor: COLORS.lightGray,
+  },
+  clubCardTitle: {
+    fontSize: SIZES.medium,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: SIZES.base / 2,
+  },
+  clubCardDescription: {
+    fontSize: SIZES.font,
+    color: COLORS.textSecondary,
+    marginBottom: SIZES.base,
+  },
+  clubCardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  applicationTextContainer: {
-    flex: 1,
-    marginRight: 8,
+  clubCardMembers: {
+    fontSize: SIZES.small,
+    color: COLORS.textSecondary,
   },
-  applicationClubName: {
-    fontFamily: FONTS.FONT_FAMILY.bold,
-    fontSize: 18,
-  },
-  applicationUserName: {
-    fontFamily: FONTS.FONT_FAMILY.regular,
-    fontSize: 14,
-    opacity: 0.8,
-  },
-  applicationStatus: {
-    fontFamily: FONTS.FONT_FAMILY.regular,
-    fontSize: 12,
-    marginTop: 4,
-  },
-  noClubContainer: {
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noClubText: {
-    fontSize: 16,
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  joinClubButton: {
+  clubCardJoinButton: {
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: SIZES.radius,
+    padding: SIZES.base / 2,
   },
-  joinClubButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  seeAll: {
-    fontFamily: FONTS.FONT_FAMILY.medium,
-    fontSize: 14,
-    lineHeight: 20,
-    marginRight: 4,
-  },
-  loader: {
-    marginTop: 12,
-  },
-  clubCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    marginBottom: 12,
-    marginHorizontal: 16,
-    flexDirection: 'row',
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+  clubCardJoinButtonText: {
+    color: COLORS.white,
+    fontSize: SIZES.small,
+    fontWeight: '500',
   },
   clubLogo: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
-    backgroundColor: COLORS.border,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: SIZES.base,
   },
   clubInfo: {
-    marginLeft: 12,
     flex: 1,
-    justifyContent: 'center',
   },
   clubName: {
-    fontSize: 16,
-    fontFamily: FONTS.FONT_FAMILY.bold,
+    fontSize: SIZES.medium,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: SIZES.base / 2,
+  },
+  clubDescription: {
+    fontSize: SIZES.font,
+    color: COLORS.textSecondary,
+    marginBottom: SIZES.base,
+  },
+  clubStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  clubStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: SIZES.base,
+  },
+  clubStatText: {
+    fontSize: SIZES.small,
+    color: COLORS.textSecondary,
+    marginLeft: SIZES.base / 2,
   },
   memberCount: {
     fontSize: 14,
-    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
   },
   textInputFocus: {
     borderColor: COLORS.primary,
   },
-  // Modal stilleri eklendi
   modalCenteredView: {
     flex: 1,
     justifyContent: 'center',
@@ -1861,13 +1910,13 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     textAlign: 'center',
     fontSize: 22,
-    fontFamily: FONTS.FONT_FAMILY.bold,
+    fontFamily: FONTS.bold,
   },
   modalText: {
     marginBottom: 20,
     textAlign: 'center',
     fontSize: 16,
-    fontFamily: FONTS.FONT_FAMILY.regular,
+    fontFamily: FONTS.regular,
     lineHeight: 22,
   },
   modalButtonContainer: {
@@ -1883,7 +1932,7 @@ const styles = StyleSheet.create({
   },
   modalButtonText: {
     fontSize: 16,
-    fontFamily: FONTS.FONT_FAMILY.medium,
+    fontFamily: FONTS.medium,
     textAlign: 'center',
   },
   centered: {
@@ -1891,29 +1940,114 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  applicationNote: {
-    fontSize: 14,
-    fontFamily: FONTS.FONT_FAMILY.regular,
-    marginVertical: 8,
+  noClubContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  responseContainer: {
-    marginTop: 8,
-    padding: 8,
-    backgroundColor: COLORS.backgroundSecondary,
-    borderRadius: 4,
+  noClubText: {
+    fontSize: 16,
+    marginBottom: 10,
+    textAlign: 'center',
   },
-  responseLabel: {
-    fontFamily: FONTS.FONT_FAMILY.bold,
-    fontSize: 14,
+  joinClubButton: {
+    padding: SIZES.base,
+    backgroundColor: COLORS.primary,
+    borderRadius: SIZES.radius,
+    marginTop: SIZES.base,
   },
-  responseNote: {
-    fontFamily: FONTS.FONT_FAMILY.regular,
-    fontSize: 14,
+  joinClubButtonText: {
+    color: COLORS.white,
+    fontSize: SIZES.font,
+    fontWeight: '500',
   },
-  applicationDate: {
-    fontFamily: FONTS.FONT_FAMILY.regular,
+  seeAll: {
+    fontFamily: FONTS.medium,
     fontSize: 14,
-    marginTop: 8,
+    lineHeight: 20,
+    marginRight: 4,
+  },
+  loader: {
+    marginTop: 12,
+  },
+  applicationStatus: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  headerTitle: {
+    fontSize: SIZES.large,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  headerSubtitle: {
+    fontSize: SIZES.font,
+    color: COLORS.textSecondary,
+    marginTop: SIZES.base / 2,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.radius,
+    padding: SIZES.base,
+    marginTop: SIZES.base,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: SIZES.font,
+    color: COLORS.textPrimary,
+    marginLeft: SIZES.base,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SIZES.base,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.radius,
+    padding: SIZES.base,
+    marginRight: SIZES.base,
+  },
+  filterButtonText: {
+    fontSize: SIZES.font,
+    color: COLORS.textPrimary,
+    marginLeft: SIZES.base / 2,
+  },
+  oldClubCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    shadowColor: 'rgba(0,0,0,0.04)',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.8,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  oldClubLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+  },
+  oldClubInfo: {
+    flex: 1,
+  },
+  oldClubName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#222',
+  },
+  oldClubMemberCount: {
+    fontSize: 13,
+    color: '#aaa',
+    marginTop: 2,
   },
 });
 

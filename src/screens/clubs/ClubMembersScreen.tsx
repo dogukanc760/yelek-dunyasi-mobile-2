@@ -209,7 +209,6 @@ export const ClubMembersScreen = () => {
     if (!selectedMember) return;
 
     try {
-      // TODO: API entegrasyonu yapılacak
       Alert.alert(
         'Üye Çıkarma',
         'Bu üyeyi kulüpten çıkarmak istediğinize emin misiniz?',
@@ -222,10 +221,27 @@ export const ClubMembersScreen = () => {
             text: 'Çıkar',
             style: 'destructive',
             onPress: async () => {
-              setModalVisible(false);
-              // TODO: API çağrısı yapılacak
-              Alert.alert('Başarılı', 'Üye kulüpten çıkarıldı');
-              fetchMembers();
+              try {
+                const response = await clubService.removeMember(
+                  clubId,
+                  selectedMember.id,
+                );
+
+                if (!response.isSuccess) {
+                  throw new Error(
+                    response.errors?.[0] || 'Üye çıkarma işlemi başarısız oldu',
+                  );
+                }
+
+                setModalVisible(false);
+                Alert.alert('Başarılı', 'Üye kulüpten çıkarıldı');
+                fetchMembers();
+              } catch (error: any) {
+                Alert.alert(
+                  'Hata',
+                  error.message || 'Üye çıkarılırken bir hata oluştu',
+                );
+              }
             },
           },
         ],
@@ -331,7 +347,10 @@ export const ClubMembersScreen = () => {
       onPress={() => handleMemberPress(item)}>
       <Image
         source={{
-          uri: item.user.profilePicture || 'https://via.placeholder.com/50',
+          uri:
+            'http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000' +
+              item.user.profilePicture?.replace('public', '') ||
+            'https://via.placeholder.com/50',
         }}
         style={styles.avatar}
       />

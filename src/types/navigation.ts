@@ -1,4 +1,8 @@
+import {Event} from '../services/eventService';
+import {NavigatorScreenParams} from '@react-navigation/native';
+
 export type RootStackParamList = {
+  MainTabs: NavigatorScreenParams<MainTabParamList>;
   Home: undefined;
   Login: undefined;
   Register: undefined;
@@ -6,13 +10,29 @@ export type RootStackParamList = {
   Settings: undefined;
   ClubDetail: {id: string};
   EventDetail: {id: string; isEditable?: boolean};
+  Events: undefined;
+  MyEvents: undefined;
+  EditProfile: undefined;
+  ClubsListScreen: {
+    categoryId?: string;
+    tagId?: string;
+    searchQuery?: string;
+  };
+  Notifications: undefined;
+  Teams: undefined;
+  TeamDetail: {id: string};
   ClubEvents: {clubId: string};
   ManageClub: {clubId: string};
   CreateClub: undefined;
   CreateEvent: {clubId: string};
-  EditEvent: {eventId: string; clubId: string};
+  EditEvent: {eventData: Event};
   EditClub: {clubId: string};
   ClubMembers: {clubId: string};
+  ClubAnnouncements: {clubId: string};
+  Routes: undefined;
+  RouteDetail: {id: string};
+  ClubApplications: {clubId: string};
+  CreateClubAnnouncementScreen: {clubId: string};
   ClubFiles: {clubId: string};
   ClubSettings: {clubId: string};
   ClubInvites: {clubId: string};
@@ -141,8 +161,6 @@ export type RootStackParamList = {
   };
   ClubTemplateCategoryTemplateCategoryImport: {
     clubId: string;
-    categoryId: string;
-    templateId: string;
   };
   ClubTemplateCategoryTemplateCategoryTemplates: {
     clubId: string;
@@ -193,10 +211,17 @@ export type RootStackParamList = {
   };
   ClubTemplateCategoryTemplateCategoryTemplateImport: {
     clubId: string;
-    categoryId: string;
-    templateId: string;
-    templateCategoryId: string;
   };
+  AnnouncementDetail: {id: string};
+  EventsScreen: undefined;
+  PopularRoutes: undefined;
+};
+
+export type MainTabParamList = {
+  Home: undefined;
+  Events: undefined;
+  Routes: undefined;
+  Profile: undefined;
 };
 
 declare global {

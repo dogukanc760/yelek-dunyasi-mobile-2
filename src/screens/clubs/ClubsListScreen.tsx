@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import {
   useNavigation,
@@ -19,9 +20,9 @@ import {
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../types/navigation';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import {COLORS, SIZES} from '../../constants';
+import {COLORS, SIZES, FONTS} from '../../constants/theme';
 import {Club} from '../../services/clubService';
-import {mockClubs} from '../../data/mockClubs';
+import clubService from '../../services/clubService';
 
 type ClubsListScreenNavigationProp =
   NativeStackNavigationProp<RootStackParamList>;
@@ -49,20 +50,74 @@ export const ClubsListScreen = () => {
   );
   const [tagFilter, setTagFilter] = useState<string | null>(routeTagId || null);
   const [showFilters, setShowFilters] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Mevcut tüm şehirleri ve etiketleri çıkar
-  const allCities = [...new Set(mockClubs.map(club => club.city))];
-  const allTags = [...new Set(mockClubs.flatMap(club => club.tags))];
+  const allCities = [...new Set(clubs.map(club => club.city))];
+  const allTags = [...new Set(clubs.flatMap(club => club.tags))];
+
+  const fetchClubs = useCallback(
+    async (isRefreshing = false) => {
+      try {
+        if (isRefreshing) {
+          setPage(1);
+          setHasMore(true);
+        }
+
+        if (!hasMore && !isRefreshing) return;
+
+        const currentPage = isRefreshing ? 1 : page;
+        const response = await clubService.getClubs({
+          page: currentPage,
+          limit: 10,
+          city: cityFilter || undefined,
+          search: searchQuery || undefined,
+          tags: tagFilter ? [tagFilter] : undefined,
+          categoryId: routeCategoryId,
+          tagId: routeTagId,
+        });
+
+        if (isRefreshing) {
+          setClubs(response.clubs);
+        } else {
+          setClubs(prev => [...prev, ...response.clubs]);
+        }
+
+        setHasMore(response.clubs.length === 10);
+        setPage(currentPage + 1);
+
+        // Şehirleri ve etiketleri güncelle
+        const cities = new Set<string>();
+        const tags = new Set<string>();
+        response.clubs.forEach(club => {
+          if (club.city) cities.add(club.city);
+          club.tags?.forEach(tag => tags.add(tag));
+        });
+        setAllCities(Array.from(cities));
+        setAllTags(Array.from(tags));
+      } catch (error) {
+        console.error('Kulüpler yüklenirken hata:', error);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [
+      page,
+      hasMore,
+      cityFilter,
+      searchQuery,
+      tagFilter,
+      routeCategoryId,
+      routeTagId,
+    ],
+  );
 
   useEffect(() => {
-    // Mock veri yükleme
-    setLoading(true);
-    setTimeout(() => {
-      setClubs(mockClubs);
-      setFilteredClubs(mockClubs);
-      setLoading(false);
-    }, 500);
-  }, []);
+    fetchClubs(true);
+  }, [fetchClubs]);
 
   useEffect(() => {
     // Route parametreleri değiştiğinde filtreleri güncelle
@@ -80,31 +135,6 @@ export const ClubsListScreen = () => {
   }, [routeCategoryId, routeTagId, routeSearchQuery]);
 
   useEffect(() => {
-    // Filtreleme işlemi
-    let result = clubs;
-
-    // Arama sorgusuna göre filtrele
-    if (searchQuery) {
-      const lowerQuery = searchQuery.toLowerCase();
-      result = result.filter(
-        club =>
-          club.name.toLowerCase().includes(lowerQuery) ||
-          club.description.toLowerCase().includes(lowerQuery),
-      );
-    }
-
-    // Şehre göre filtrele
-    if (cityFilter) {
-      result = result.filter(club => club.city === cityFilter);
-    }
-
-    // Etikete göre filtrele
-    if (tagFilter) {
-      result = result.filter(club => club.tags.includes(tagFilter));
-    }
-
-    setFilteredClubs(result);
-
     // Başlığı güncelle
     let title = 'Kulüpler';
     if (tagFilter) {
@@ -119,12 +149,29 @@ export const ClubsListScreen = () => {
 
   const handleSearch = (text: string) => {
     setSearchQuery(text);
+    setPage(1);
+    setHasMore(true);
+    fetchClubs(true);
   };
 
   const clearFilters = () => {
     setCityFilter(null);
     setTagFilter(null);
     setSearchQuery('');
+    setPage(1);
+    setHasMore(true);
+    fetchClubs(true);
+  };
+
+  const handleLoadMore = () => {
+    if (!loading && hasMore) {
+      fetchClubs();
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchClubs(true);
   };
 
   const renderClubCard = ({item}: {item: Club}) => (
@@ -132,7 +179,14 @@ export const ClubsListScreen = () => {
       style={[styles.clubCard, {backgroundColor: colors.card}]}
       onPress={() => navigation.navigate('ClubDetail', {id: item.id})}>
       <View style={styles.clubHeader}>
-        <Image source={{uri: item.logoUrl}} style={styles.clubLogo} />
+        <Image
+          source={{
+            uri:
+              'http://ec2-16-171-103-116.eu-north-1.compute.amazonaws.com:3000' +
+              item.logo.replace('/public', ''),
+          }}
+          style={styles.clubLogo}
+        />
         <View style={styles.clubInfo}>
           <Text style={[styles.clubName, {color: colors.text}]}>
             {item.name}
@@ -243,18 +297,29 @@ export const ClubsListScreen = () => {
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.filterScrollView}>
+          <TouchableOpacity
+            style={[styles.filterChip, !cityFilter && styles.filterChipActive]}
+            onPress={() => setCityFilter(null)}>
+            <Text
+              style={[
+                styles.filterChipText,
+                !cityFilter && styles.filterChipTextActive,
+              ]}>
+              Tümü
+            </Text>
+          </TouchableOpacity>
           {allCities.map((city, index) => (
             <TouchableOpacity
               key={index}
               style={[
                 styles.filterChip,
-                cityFilter === city && {backgroundColor: colors.primary},
+                city === cityFilter && styles.filterChipActive,
               ]}
-              onPress={() => setCityFilter(cityFilter === city ? null : city)}>
+              onPress={() => setCityFilter(city === cityFilter ? null : city)}>
               <Text
                 style={[
                   styles.filterChipText,
-                  {color: cityFilter === city ? 'white' : colors.text},
+                  city === cityFilter && styles.filterChipTextActive,
                 ]}>
                 {city}
               </Text>
@@ -262,7 +327,6 @@ export const ClubsListScreen = () => {
           ))}
         </ScrollView>
       </View>
-
       <View style={styles.filterSection}>
         <Text style={[styles.filterTitle, {color: colors.text}]}>
           Etiketler
@@ -271,18 +335,29 @@ export const ClubsListScreen = () => {
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.filterScrollView}>
+          <TouchableOpacity
+            style={[styles.filterChip, !tagFilter && styles.filterChipActive]}
+            onPress={() => setTagFilter(null)}>
+            <Text
+              style={[
+                styles.filterChipText,
+                !tagFilter && styles.filterChipTextActive,
+              ]}>
+              Tümü
+            </Text>
+          </TouchableOpacity>
           {allTags.map((tag, index) => (
             <TouchableOpacity
               key={index}
               style={[
                 styles.filterChip,
-                tagFilter === tag && {backgroundColor: colors.primary},
+                tag === tagFilter && styles.filterChipActive,
               ]}
-              onPress={() => setTagFilter(tagFilter === tag ? null : tag)}>
+              onPress={() => setTagFilter(tag === tagFilter ? null : tag)}>
               <Text
                 style={[
                   styles.filterChipText,
-                  {color: tagFilter === tag ? 'white' : colors.text},
+                  tag === tagFilter && styles.filterChipTextActive,
                 ]}>
                 {tag}
               </Text>
@@ -290,61 +365,57 @@ export const ClubsListScreen = () => {
           ))}
         </ScrollView>
       </View>
-
-      <TouchableOpacity
-        style={styles.clearFiltersButton}
-        onPress={clearFilters}>
-        <Text style={{color: colors.primary, fontWeight: '500'}}>
-          Tüm Filtreleri Temizle
-        </Text>
-      </TouchableOpacity>
+      {(cityFilter || tagFilter) && (
+        <TouchableOpacity
+          style={styles.clearFiltersButton}
+          onPress={clearFilters}>
+          <Text style={[styles.clearFiltersText, {color: colors.primary}]}>
+            Filtreleri Temizle
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
+
+  const renderFooter = () => {
+    if (!loading) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={colors.primary} />
+      </View>
+    );
+  };
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       {renderHeader()}
-
       {showFilters && renderFilters()}
-
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={{color: colors.text, marginTop: 10}}>
-            Kulüpler yükleniyor...
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredClubs}
-          renderItem={renderClubCard}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContainer}
-          ListEmptyComponent={
+      <FlatList
+        data={clubs}
+        renderItem={renderClubCard}
+        keyExtractor={item => item.id}
+        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={
+          !loading ? (
             <View style={styles.emptyContainer}>
               <MaterialCommunityIcons
-                name="alert-circle-outline"
-                size={50}
+                name="account-group"
+                size={48}
                 color={COLORS.textSecondary}
               />
               <Text style={[styles.emptyText, {color: colors.text}]}>
-                {searchQuery || cityFilter || tagFilter
-                  ? 'Arama kriterlerine uygun kulüp bulunamadı'
-                  : 'Henüz kulüp bulunmuyor'}
+                Kulüp bulunamadı
               </Text>
-              {(searchQuery || cityFilter || tagFilter) && (
-                <TouchableOpacity
-                  onPress={clearFilters}
-                  style={styles.clearButton}>
-                  <Text style={{color: colors.primary}}>
-                    Filtreleri Temizle
-                  </Text>
-                </TouchableOpacity>
-              )}
             </View>
-          }
-        />
-      )}
+          ) : null
+        }
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={renderFooter}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      />
     </View>
   );
 };
@@ -355,90 +426,97 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    padding: SIZES.spacing.md,
-    gap: SIZES.spacing.sm,
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
   },
   searchContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SIZES.spacing.md,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
-    height: 50,
   },
   searchInput: {
     flex: 1,
-    marginLeft: SIZES.spacing.sm,
+    marginLeft: 8,
     fontSize: 16,
   },
   filterButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 50,
-    height: 50,
+    padding: 8,
     borderRadius: 8,
   },
   filtersContainer: {
-    padding: SIZES.spacing.md,
-    marginHorizontal: SIZES.spacing.md,
-    borderRadius: 8,
-    marginBottom: SIZES.spacing.md,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightGray,
   },
   filterSection: {
-    marginBottom: SIZES.spacing.md,
+    marginBottom: 16,
   },
   filterTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: SIZES.spacing.sm,
+    fontFamily: 'Poppins-SemiBold',
+    marginBottom: 8,
   },
   filterScrollView: {
     flexDirection: 'row',
   },
   filterChip: {
-    paddingHorizontal: SIZES.spacing.md,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 16,
-    marginRight: SIZES.spacing.sm,
-    backgroundColor: COLORS.backgroundLight,
+    borderRadius: 20,
+    marginRight: 8,
   },
   filterChipText: {
     fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+  },
+  filterChipActive: {
+    backgroundColor: COLORS.primary,
+  },
+  filterChipTextActive: {
+    color: COLORS.white,
   },
   clearFiltersButton: {
-    alignItems: 'center',
-    paddingVertical: SIZES.spacing.sm,
-    marginTop: SIZES.spacing.sm,
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+  },
+  clearFiltersText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
   },
   listContainer: {
-    padding: SIZES.spacing.md,
+    padding: 16,
   },
   clubCard: {
-    borderRadius: 8,
-    padding: SIZES.spacing.md,
-    marginBottom: SIZES.spacing.md,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   clubHeader: {
     flexDirection: 'row',
-    marginBottom: SIZES.spacing.md,
+    alignItems: 'center',
+    marginBottom: 12,
   },
   clubLogo: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
   },
   clubInfo: {
     flex: 1,
-    marginLeft: SIZES.spacing.md,
   },
   clubName: {
-    fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 18,
+    fontFamily: 'Poppins-SemiBold',
     marginBottom: 4,
   },
   clubLocation: {
@@ -447,15 +525,16 @@ const styles = StyleSheet.create({
   },
   clubLocationText: {
     fontSize: 14,
+    fontFamily: 'Poppins-Regular',
     marginLeft: 4,
   },
   joinedBadge: {
-    padding: 4,
+    marginLeft: 8,
   },
   clubDescription: {
     fontSize: 14,
-    lineHeight: 20,
-    marginBottom: SIZES.spacing.md,
+    fontFamily: 'Poppins-Regular',
+    marginBottom: 12,
   },
   clubFooter: {
     flexDirection: 'row',
@@ -468,6 +547,7 @@ const styles = StyleSheet.create({
   },
   memberCountText: {
     fontSize: 14,
+    fontFamily: 'Poppins-Regular',
     marginLeft: 4,
   },
   tagsContainer: {
@@ -478,29 +558,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    marginLeft: 4,
+    marginLeft: 8,
   },
   moreTag: {
     fontSize: 12,
-    marginLeft: 4,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    fontFamily: 'Poppins-Regular',
+    marginLeft: 8,
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: SIZES.spacing.xl * 2,
+    padding: 32,
   },
   emptyText: {
-    textAlign: 'center',
-    marginTop: SIZES.spacing.md,
-    marginBottom: SIZES.spacing.md,
+    fontSize: 16,
+    fontFamily: 'Poppins-Medium',
+    marginTop: 16,
   },
-  clearButton: {
-    paddingVertical: SIZES.spacing.sm,
-    paddingHorizontal: SIZES.spacing.md,
+  footerLoader: {
+    paddingVertical: 16,
+    alignItems: 'center',
   },
 });
+
+export default ClubsListScreen;

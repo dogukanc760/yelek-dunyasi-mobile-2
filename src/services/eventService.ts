@@ -11,11 +11,11 @@ export interface Event {
   startDate: string;
   endDate: string;
   locationName: string;
-  latitude: string;
-  longitude: string;
+  latitude: number;
+  longitude: number;
   destinationLocationName: string;
-  destinationLatitude: string;
-  destinationLongitude: string;
+  destinationLatitude: number;
+  destinationLongitude: number;
   waypoints: Waypoint[];
   maxParticipants: number;
   isPrivate: boolean;
@@ -23,9 +23,9 @@ export interface Event {
   clubId: string;
   clubCityId: string;
   creatorId: string;
-  distance: string;
+  distance: number;
   travelLink: string;
-  targetRanks: string;
+  targetRanks: string[];
   participantCount: number;
   confirmedParticipantCount: number;
   createdAt: string;
@@ -299,12 +299,48 @@ class EventService {
     eventData: Partial<Event>,
   ): Promise<Event> {
     try {
+      console.log('⬆️ Etkinlik güncelleme isteği:', {
+        url: `/api/v1/events/${eventId}`,
+        data: eventData,
+      });
+
       const response = await apiClient.patch(
         `/api/v1/events/${eventId}`,
         eventData,
+        {
+          timeout: 15000, // Timeout süresini artıralım
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
       );
+
+      console.log('✅ Etkinlik güncelleme başarılı:', response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ Etkinlik güncelleme hatası:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        config: error.config,
+      });
+
+      // Network hatası durumunda
+      if (!error.response) {
+        throw new Error(
+          'API sunucusuna ulaşılamıyor. Lütfen internet bağlantınızı kontrol edin.',
+        );
+      }
+
+      // API hatası durumunda
+      if (error.response.data?.errors) {
+        throw new Error(
+          Array.isArray(error.response.data.errors)
+            ? error.response.data.errors.join(', ')
+            : error.response.data.errors,
+        );
+      }
+
       throw error;
     }
   }

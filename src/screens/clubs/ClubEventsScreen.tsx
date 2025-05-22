@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useCallback} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -20,11 +20,13 @@ import {COLORS, FONTS} from '../../constants';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {format, compareDesc} from 'date-fns';
 import {tr} from 'date-fns/locale';
-import EventService from '../../services/eventService';
+import EventService, {Event} from '../../services/eventService';
 
 type ClubEventsScreenRouteProp = RouteProp<RootStackParamList, 'ClubEvents'>;
-type ClubEventsScreenNavigationProp =
-  NativeStackNavigationProp<RootStackParamList>;
+type ClubEventsScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'ClubEvents' | 'EditEvent'
+>;
 
 export const ClubEventsScreen = () => {
   const {colors} = useTheme();
@@ -32,8 +34,8 @@ export const ClubEventsScreen = () => {
   const navigation = useNavigation<ClubEventsScreenNavigationProp>();
   const {clubId} = route.params;
 
-  const [events, setEvents] = useState<any[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,9 +108,9 @@ export const ClubEventsScreen = () => {
     fetchEvents();
   }, [clubId]);
 
-  // Sıralama fonksiyonu
-  const sortEvents = useCallback(
-    (eventsToSort: any[]) => {
+  // Filtreleme fonksiyonu güncellendi
+  useEffect(() => {
+    const sortEvents = (eventsToSort: Event[]) => {
       return [...eventsToSort].sort((a, b) => {
         switch (sortBy) {
           case 'date':
@@ -123,12 +125,8 @@ export const ClubEventsScreen = () => {
             return 0;
         }
       });
-    },
-    [sortBy],
-  );
+    };
 
-  // Filtreleme fonksiyonu güncellendi
-  useEffect(() => {
     const filterAndSortEvents = () => {
       let filtered = [...events];
 
@@ -156,7 +154,7 @@ export const ClubEventsScreen = () => {
     };
 
     filterAndSortEvents();
-  }, [searchText, selectedType, selectedStatus, events, sortEvents]);
+  }, [searchText, selectedType, selectedStatus, events, sortBy]);
 
   const renderFilterChip = (
     id: string | null,
@@ -268,81 +266,141 @@ export const ClubEventsScreen = () => {
     </View>
   );
 
-  const renderEventItem = ({item}: {item: any}) => (
-    <TouchableOpacity
-      style={[styles.eventItem, {backgroundColor: colors.card}]}
-      onPress={() =>
-        navigation.navigate('EventDetail', {
-          id: item.id,
-        })
-      }>
-      <View style={styles.eventHeader}>
-        <Text style={[styles.eventTitle, {color: colors.text}]}>
-          {item.title}
-        </Text>
-        <View style={styles.eventType}>
-          <MaterialCommunityIcons
-            name={item.type === 'ride' ? 'motorbike' : 'calendar-clock'}
-            size={16}
-            color={colors.primary}
-          />
-          <Text style={[styles.eventTypeText, {color: colors.primary}]}>
-            {item.type === 'ride' ? 'Sürüş' : 'Toplantı'}
+  const renderEventItem = ({item}: {item: Event}) => {
+    return (
+      <TouchableOpacity
+        style={[styles.eventItem, {backgroundColor: colors.card}]}
+        onPress={() => {
+          console.log('Navigating to EditEvent with data:', item);
+          navigation.navigate('EditEvent', {
+            eventData: {
+              id: item.id,
+              title: item.title,
+              description: item.description,
+              type: item.type,
+              scope: item.scope || 'club',
+              status: item.status,
+              startDate: item.startDate,
+              endDate: item.endDate,
+              locationName: item.locationName,
+              latitude: item.latitude,
+              longitude: item.longitude,
+              destinationLocationName: item.destinationLocationName,
+              destinationLatitude: item.destinationLatitude,
+              destinationLongitude: item.destinationLongitude,
+              waypoints: item.waypoints,
+              maxParticipants: item.maxParticipants,
+              isPrivate: item.isPrivate,
+              tags: item.tags,
+              clubId: clubId,
+              clubCityId: '',
+              creatorId: '',
+              distance: '',
+              travelLink: '',
+              targetRanks: '',
+              participantCount: item.participantCount,
+              confirmedParticipantCount: item.confirmedParticipantCount,
+              club: {
+                id: clubId,
+                name: '',
+                description: '',
+                logo: '',
+                cover: '',
+                type: '',
+                status: '',
+                isOfficial: false,
+                memberCount: 0,
+                isActive: true,
+                isFreeForever: false,
+                founderId: '',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              },
+              creator: {
+                id: '',
+                email: '',
+                firstName: '',
+                lastName: '',
+                profilePicture: '',
+              },
+              participants: [],
+              checkpoints: [],
+              createdAt: item.createdAt || new Date().toISOString(),
+              updatedAt: item.updatedAt || new Date().toISOString(),
+            },
+          });
+        }}>
+        <View style={styles.eventHeader}>
+          <Text style={[styles.eventTitle, {color: colors.text}]}>
+            {item.title}
           </Text>
+          <View style={styles.eventType}>
+            <MaterialCommunityIcons
+              name={item.type === 'ride' ? 'motorbike' : 'calendar-clock'}
+              size={16}
+              color={colors.primary}
+            />
+            <Text style={[styles.eventTypeText, {color: colors.primary}]}>
+              {item.type === 'ride' ? 'Sürüş' : 'Toplantı'}
+            </Text>
+          </View>
         </View>
-      </View>
-      <View style={styles.eventInfo}>
-        <View style={styles.eventInfoItem}>
-          <MaterialCommunityIcons
-            name="calendar"
-            size={16}
-            color={COLORS.textSecondary}
-          />
-          <Text style={[styles.eventInfoText, {color: COLORS.textSecondary}]}>
-            {format(new Date(item.startDate), 'd MMM yyyy', {locale: tr})}
-          </Text>
-        </View>
-        {item.locationName && (
+        <View style={styles.eventInfo}>
           <View style={styles.eventInfoItem}>
             <MaterialCommunityIcons
-              name="map-marker"
+              name="calendar"
               size={16}
               color={COLORS.textSecondary}
             />
             <Text style={[styles.eventInfoText, {color: COLORS.textSecondary}]}>
-              {item.locationName}
+              {format(new Date(item.startDate), 'd MMM yyyy', {locale: tr})}
             </Text>
           </View>
-        )}
-        <View style={styles.eventInfoItem}>
-          <MaterialCommunityIcons
-            name="account-group"
-            size={16}
-            color={COLORS.textSecondary}
-          />
-          <Text style={[styles.eventInfoText, {color: COLORS.textSecondary}]}>
-            {item.participantCount}/{item.maxParticipants || '∞'} katılımcı
-          </Text>
-        </View>
-        {item.status && (
-          <View
-            style={[
-              styles.statusContainer,
-              {backgroundColor: getStatusColor(item.status)},
-            ]}>
-            <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
+          {item.locationName && (
+            <View style={styles.eventInfoItem}>
+              <MaterialCommunityIcons
+                name="map-marker"
+                size={16}
+                color={COLORS.textSecondary}
+              />
+              <Text
+                style={[styles.eventInfoText, {color: COLORS.textSecondary}]}>
+                {item.locationName}
+              </Text>
+            </View>
+          )}
+          <View style={styles.eventInfoItem}>
+            <MaterialCommunityIcons
+              name="account-group"
+              size={16}
+              color={COLORS.textSecondary}
+            />
+            <Text style={[styles.eventInfoText, {color: COLORS.textSecondary}]}>
+              {item.participantCount}/{item.maxParticipants || '∞'} katılımcı
+            </Text>
           </View>
+          {item.status && (
+            <View
+              style={[
+                styles.statusContainer,
+                {backgroundColor: getStatusColor(item.status)},
+              ]}>
+              <Text style={styles.statusText}>
+                {getStatusText(item.status)}
+              </Text>
+            </View>
+          )}
+        </View>
+        {item.description && (
+          <Text
+            style={[styles.description, {color: COLORS.textSecondary}]}
+            numberOfLines={2}>
+            {item.description}
+          </Text>
         )}
-      </View>
-      {item.description && (
-        <Text
-          style={[styles.description, {color: COLORS.textSecondary}]}
-          numberOfLines={2}>
-          {item.description}
-        </Text>
-      )}
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {

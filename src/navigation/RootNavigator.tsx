@@ -6,7 +6,6 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import {BottomTabNavigator} from './BottomTabNavigator';
 import {useAuth} from '../context/AuthContext';
-import {AnnouncementDetailScreen} from '../screens/announcements/AnnouncementDetailScreen';
 import {ClubDetailScreen} from '../screens/clubs/ClubDetailScreen';
 import EventsScreen from '../screens/events/EventsScreen';
 import {MyEventsScreen} from '../screens/events/MyEventsScreen';
@@ -30,6 +29,8 @@ import {COLORS} from '../constants';
 import {useNavigation} from '@react-navigation/native';
 import EventDetailScreen from '../screens/events/EventDetailScreen';
 import ClubEventsScreen from '../screens/clubs/ClubEventsScreen';
+import EditEventScreen from '../screens/events/EditEventScreen';
+import {CreateClubScreen} from '../screens/clubs/CreateClubScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -68,20 +69,17 @@ const RootNavigator = () => {
             component={BottomTabNavigator}
             options={{headerShown: false}}
           />
-          <Stack.Screen
-            name="AnnouncementDetail"
-            component={AnnouncementDetailScreen}
-          />
-          <Stack.Screen name="ClubDetail" component={ClubDetailScreen} />
-          <Stack.Screen name="EventDetail" component={EventDetailScreen} />
-          <Stack.Screen name="Events" component={EventsScreen} />
-          <Stack.Screen name="MyEvents" component={MyEventsScreen} />
-          <Stack.Screen name="Settings" component={SettingsScreen} />
+          <Stack.Screen name="Home" component={BottomTabNavigator} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+          <Stack.Screen name="Settings" component={SettingsScreen} />
           <Stack.Screen name="ClubsList" component={ClubsListScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
           <Stack.Screen name="Teams" component={TeamsScreen} />
           <Stack.Screen name="TeamDetail" component={TeamDetailScreen} />
+          <Stack.Screen name="ClubDetail" component={ClubDetailScreen} />
+          <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+          <Stack.Screen name="Events" component={EventsScreen} />
+          <Stack.Screen name="MyEvents" component={MyEventsScreen} />
           <Stack.Screen name="ClubMembers" component={ClubMembersScreen} />
           <Stack.Screen
             name="ClubAnnouncements"
@@ -101,6 +99,8 @@ const RootNavigator = () => {
             component={CreateClubAnnouncementScreen}
           />
           <Stack.Screen name="EditClub" component={EditClubScreen} />
+          <Stack.Screen name="EditEvent" component={EditEventScreen} />
+          <Stack.Screen name="CreateClub" component={CreateClubScreen} />
         </>
       )}
     </Stack.Navigator>
