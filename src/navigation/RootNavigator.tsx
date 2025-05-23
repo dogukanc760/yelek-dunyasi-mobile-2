@@ -72,7 +72,7 @@ const RootNavigator = () => {
           <Stack.Screen name="Home" component={BottomTabNavigator} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
-          <Stack.Screen name="ClubsList" component={ClubsListScreen} />
+          <Stack.Screen name="ClubsListScreen" component={ClubsListScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
           <Stack.Screen name="Teams" component={TeamsScreen} />
           <Stack.Screen name="TeamDetail" component={TeamDetailScreen} />

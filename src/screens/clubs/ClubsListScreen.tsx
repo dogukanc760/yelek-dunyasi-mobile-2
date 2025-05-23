@@ -20,7 +20,7 @@ import {
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../../types/navigation';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import {COLORS, SIZES, FONTS} from '../../constants/theme';
+import {COLORS} from '../../constants/theme';
 import {Club} from '../../services/clubService';
 import clubService from '../../services/clubService';
 
@@ -43,7 +43,6 @@ export const ClubsListScreen = () => {
 
   const [loading, setLoading] = useState(true);
   const [clubs, setClubs] = useState<Club[]>([]);
-  const [filteredClubs, setFilteredClubs] = useState<Club[]>([]);
   const [searchQuery, setSearchQuery] = useState(routeSearchQuery || '');
   const [cityFilter, setCityFilter] = useState<string | null>(
     routeCategoryId || null,
@@ -79,24 +78,15 @@ export const ClubsListScreen = () => {
           tagId: routeTagId,
         });
 
+        const clubsArr = Array.isArray(response.data) ? response.data : [];
         if (isRefreshing) {
-          setClubs(response.clubs);
+          setClubs(clubsArr);
         } else {
-          setClubs(prev => [...prev, ...response.clubs]);
+          setClubs(prev => [...prev, ...clubsArr]);
         }
 
-        setHasMore(response.clubs.length === 10);
+        setHasMore(clubsArr.length === 10);
         setPage(currentPage + 1);
-
-        // Şehirleri ve etiketleri güncelle
-        const cities = new Set<string>();
-        const tags = new Set<string>();
-        response.clubs.forEach(club => {
-          if (club.city) cities.add(club.city);
-          club.tags?.forEach(tag => tags.add(tag));
-        });
-        setAllCities(Array.from(cities));
-        setAllTags(Array.from(tags));
       } catch (error) {
         console.error('Kulüpler yüklenirken hata:', error);
       } finally {
@@ -231,7 +221,7 @@ export const ClubsListScreen = () => {
           </Text>
         </View>
         <View style={styles.tagsContainer}>
-          {item.tags.slice(0, 2).map((tag, index) => (
+          {(item.tags || []).slice(0, 2).map((tag, index) => (
             <View
               key={index}
               style={[styles.tag, {backgroundColor: colors.background}]}>
@@ -240,7 +230,7 @@ export const ClubsListScreen = () => {
               </Text>
             </View>
           ))}
-          {item.tags.length > 2 && (
+          {Array.isArray(item.tags) && item.tags.length > 2 && (
             <Text style={[styles.moreTag, {color: COLORS.textSecondary}]}>
               +{item.tags.length - 2}
             </Text>

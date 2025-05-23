@@ -129,12 +129,21 @@ class ClubService {
     tags?: string[];
     categoryId?: string;
     tagId?: string;
-  }): Promise<ClubListResponse> {
+  }): Promise<{isSuccess: boolean; data: Club[]; errors: any}> {
     try {
-      const response = await apiClient.get('/api/v1/clubs', {
+      const apiResponse = await apiClient.get('/api/v1/clubs', {
         params,
       });
-      return response.data;
+      const clubsArr = Array.isArray(apiResponse.data?.data)
+        ? apiResponse.data.data
+        : Array.isArray(apiResponse.data?.clubs)
+        ? apiResponse.data.clubs
+        : [];
+      return {
+        isSuccess: true,
+        data: clubsArr,
+        errors: null,
+      };
     } catch (error) {
       throw error;
     }

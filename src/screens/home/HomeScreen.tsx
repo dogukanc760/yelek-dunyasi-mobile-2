@@ -89,13 +89,6 @@ const Section: React.FC<{
   );
 };
 
-interface MinimalClub {
-  id: string;
-  name: string;
-  logo: string;
-  memberCount: number;
-}
-
 export const HomeScreen: React.FC = () => {
   const {colors} = useTheme();
   const {width: screenWidth} = useWindowDimensions();
@@ -541,23 +534,6 @@ export const HomeScreen: React.FC = () => {
       </TouchableOpacity>
     );
   };
-
-  const renderClubCard = (club: MinimalClub) => (
-    <TouchableOpacity
-      key={club.id}
-      style={[styles.clubCard, {backgroundColor: colors.card}]}
-      onPress={() => navigation.navigate('ClubDetail', {id: club.id})}>
-      <Image
-        source={{uri: club.logo}}
-        style={styles.clubLogo as ImageStyle}
-        resizeMode="cover"
-      />
-      <View style={styles.clubInfo}>
-        <Text style={[styles.clubName, {color: colors.text}]}>{club.name}</Text>
-        <Text style={styles.memberCount}>{club.memberCount} üye</Text>
-      </View>
-    </TouchableOpacity>
-  );
 
   const renderActiveClubCard = (club: Club) => {
     if (!club || !club.id) {
@@ -1025,7 +1001,7 @@ export const HomeScreen: React.FC = () => {
               </Text>
               <TouchableOpacity
                 style={styles.joinClubButton}
-                onPress={() => navigation.navigate('ClubsListScreen')}>
+                onPress={() => navigation.navigate('ClubsListScreen' as never)}>
                 <Text style={styles.joinClubButtonText}>Kulüpleri Keşfet</Text>
               </TouchableOpacity>
             </View>
@@ -1108,7 +1084,7 @@ export const HomeScreen: React.FC = () => {
             </Text>
             <TouchableOpacity
               style={styles.seeAllButton}
-              onPress={() => navigation.navigate('ClubsListScreen')}>
+              onPress={() => navigation.navigate('ClubsListScreen' as never)}>
               <Text style={styles.seeAllButtonText}>Tümünü gör</Text>
             </TouchableOpacity>
           </View>
@@ -1199,7 +1175,7 @@ export const HomeScreen: React.FC = () => {
               Aktif Kulüpler
             </Text>
             <TouchableOpacity
-              onPress={() => navigation.navigate('ClubsListScreen')}>
+              onPress={() => navigation.navigate('ClubsListScreen' as never)}>
               <Text style={{...styles.sectionLink, color: COLORS.primary}}>
                 Tümünü Gör
               </Text>
